@@ -466,7 +466,7 @@ const TEXT = 1 // kept as written, still read as part of its token
 const OPAQUE = 2 // kept as written and hidden from the token tests
 
 const ENTITY = /&(?:#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});/y
-const BARE_URL = /(?:(?:https?|ftp):\/\/(?=[\p{L}\p{N}_-])|file:\/\/|mailto:|www\.(?=[\p{L}\p{N}_-]))[^\s<>`]+/iuy
+const BARE_URL = /(?:[a-z][a-z0-9+.-]{1,15}:\/\/(?=[\p{L}\p{N}_-])|file:\/\/|mailto:|www\.(?=[\p{L}\p{N}_-]))[^\s<>`]+/iuy
 const URL_TRAILER = `.,:;!?'"*_~]`
 const TAG_OR_AUTOLINK = new RegExp(
   `${OPEN_TAG}|${CLOSING_TAG}|<[A-Za-z][A-Za-z0-9+.-]{1,31}:[^\\s<>]*>|<[^\\s<>@]+@[^\\s<>]+>`,

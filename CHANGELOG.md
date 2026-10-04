@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.5
+
+- Links with any scheme (for example `ssh://`) are now left as written, not only `http`, `https` and `ftp`.
+- Test fixtures use local host names only.
+
 ## 1.0.4
 
 - Documentation, support, privacy and terms links in the plugin manifest.

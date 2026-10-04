@@ -6,7 +6,7 @@ import { MESSAGES, fromLocale, fromName } from '../hooks/i18n.ts'
 const PLUGIN = 'adhd-reader'
 const SURFACES = ['terminal', 'desktop'] as const
 const REPLY =
-  'Reading **bold** `inline code` [link](https://example.com/path) https://example.com/raw\n\n```js\nconst words = 1\n```'
+  'Reading **bold** `inline code` [link](https://docs.localhost/path) https://docs.localhost/raw\n\n```js\nconst words = 1\n```'
 const BAND = {
   hasSurvey: false,
   isWorking: false,
@@ -202,8 +202,8 @@ test('on by default: prose bolded, code and URLs untouched, on both surfaces', a
     expect(out).not.toBe(REPLY)
     expect(out).toMatch(/^\*\*Re\w*\*\*\w*ing /)
     expect(out).toContain('`inline code`')
-    expect(out).toContain('(https://example.com/path)')
-    expect(out).toContain(' https://example.com/raw')
+    expect(out).toContain('(https://docs.localhost/path)')
+    expect(out).toContain(' https://docs.localhost/raw')
     expect(out).toContain('```js\nconst words = 1\n```')
   }
 })

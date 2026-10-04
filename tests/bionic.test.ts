@@ -30,16 +30,16 @@ const EXACT: Array<[string, string]> = [
   ["the _id field and user_id column", "**t**he _id field and user_id column"],
   ["Rename _private_name and my_var_name now", "**Ren**ame _private_name and my_var_name now"],
   ["Use __init__ and __name__ in foo_bar.py", "**U**se __init__ **a**nd __name__ **i**n foo_bar.py"],
-  ["See [docs] here.\n\n[docs]: https://example.com", "**S**ee [docs] **he**re.\n\n[docs]: https://example.com"],
-  ["See [docs][] and [the guide][g] and [Docs].\n\n[docs]: https://example.com\n[g]: https://example.com/g", "**S**ee [docs][] **a**nd [**t**he **gui**de][g] **a**nd [Docs].\n\n[docs]: https://example.com\n[g]: https://example.com/g"],
+  ["See [docs] here.\n\n[docs]: https://docs.localhost", "**S**ee [docs] **he**re.\n\n[docs]: https://docs.localhost"],
+  ["See [docs][] and [the guide][g] and [Docs].\n\n[docs]: https://docs.localhost\n[g]: https://docs.localhost/g", "**S**ee [docs][] **a**nd [**t**he **gui**de][g] **a**nd [Docs].\n\n[docs]: https://docs.localhost\n[g]: https://docs.localhost/g"],
   ["A claim[^note] here.\n\n[^note]: The note text.", "**A** **cla**im[^note] **he**re.\n\n[^note]: The note text."],
   ["Read [undefined label] now.", "**Re**ad [**undef**ined **lab**el] **n**ow."],
   ["Edit src/foo/bar.ts, ./hooks/register.tsx and ~/.config/settings.json now", "**Ed**it src/foo/bar.ts, ./hooks/register.tsx **a**nd ~/.config/settings.json **n**ow"],
   ["set max_output_lines and call getElementById or useEffect now", "**s**et max_output_lines **a**nd **ca**ll getElementById **o**r useEffect **n**ow"],
-  ["visit example.com and docs.example.co.uk, needs v1.2.3, ES2015 and 0xdeadbeef today", "**vis**it example.com **a**nd docs.example.co.uk, **nee**ds v1.2.3, ES2015 **a**nd 0xdeadbeef **tod**ay"],
+  ["visit docs.localhost and docs.example.co.uk, needs v1.2.3, ES2015 and 0xdeadbeef today", "**vis**it docs.localhost **a**nd docs.example.co.uk, **nee**ds v1.2.3, ES2015 **a**nd 0xdeadbeef **tod**ay"],
   ["pass --dry-run and -rf flags, 3x faster, h264 and x86_64 words", "**pa**ss --dry-run **a**nd -rf **fla**gs, 3x **fas**ter, h264 **a**nd x86_64 **wor**ds"],
-  ["mail me@example.com or ftp://files.example.com/a_b or mailto:a@b.co or file:///tmp/x.txt now", "**ma**il me@example.com **o**r ftp://files.example.com/a_b **o**r mailto:a@b.co **o**r file:///tmp/x.txt **n**ow"],
-  ["see https://example.com/a_(b) and <https://example.com/x_y> and www.example.com/p_q ok", "**s**ee https://example.com/a_(b) **a**nd <https://example.com/x_y> **a**nd www.example.com/p_q **o**k"],
+  ["mail me@docs.localhost or ssh://files.docs.localhost/a_b or mailto:a@b.co or file:///tmp/x.txt now", "**ma**il me@docs.localhost **o**r ssh://files.docs.localhost/a_b **o**r mailto:a@b.co **o**r file:///tmp/x.txt **n**ow"],
+  ["see https://docs.localhost/a_(b) and <https://docs.localhost/x_y> and www.docs.localhost/p_q ok", "**s**ee https://docs.localhost/a_(b) **a**nd <https://docs.localhost/x_y> **a**nd www.docs.localhost/p_q **o**k"],
   ["这是一个测试句子，用于检查。日本語のテキストです。สวัสดีครับ مرحبا שלום 안녕하세요", "这是一个测试句子，用于检查。日本語のテキストです。สวัสดีครับ مرحبا שלום 안녕하세요"],
   ["使用 Reader Mode 来写 words and 日本語 more words", "使用 **Rea**der **Mo**de 来写 **wor**ds **a**nd 日本語 **mo**re **wor**ds"],
   ["Euler: $e^{i\\pi} + 1 = 0$ and \\alpha, \\(x + y\\) and $$E = mc^2$$ words", "**Eul**er: $e^{i\\pi} + 1 = 0$ **a**nd \\alpha, \\(x + y\\) **a**nd $$E = mc^2$$ **wor**ds"],
@@ -59,7 +59,7 @@ const EXACT: Array<[string, string]> = [
   ["<!--\nhidden words\n-->\nvisible words", "<!--\nhidden words\n-->\n**visi**ble **wor**ds"],
   ["<details>\n<summary>Show words</summary>\n\nHidden words here\n\n</details>", "<details>\n<summary>Show words</summary>\n\n**Hid**den **wor**ds **he**re\n\n</details>"],
   ["Press <kbd>Ctrl</kbd> and <br> then Array<string> words", "**Pre**ss <kbd>**Ct**rl</kbd> **a**nd <br> **th**en **Arr**ay<string> **wor**ds"],
-  ["A [link](https://example.com/f(x)y \"Some title\") and ![alt text](img.png \"Title words\") words", "**A** [**li**nk](https://example.com/f(x)y \"Some title\") **a**nd ![alt text](img.png \"Title words\") **wor**ds"],
+  ["A [link](https://docs.localhost/f(x)y \"Some title\") and ![alt text](img.png \"Title words\") words", "**A** [**li**nk](https://docs.localhost/f(x)y \"Some title\") **a**nd ![alt text](img.png \"Title words\") **wor**ds"],
   ["| Name | Value |\n|---|---|\n| **API**s | `a|b` words |", "| **Na**me | **Val**ue |\n|---|---|\n| **API**s | `a|b` **wor**ds |"],
   ["\"quoted\" text, (parens) and it's don't rock'n'roll l'homme", "\"**quo**ted\" **te**xt, (**par**ens) **a**nd **i**t's **d**on't **ro**ck'n'roll **l'hom**me"],
   ["L'intelligence de l'homme qu'il a d'autres, O'Brien İstanbul'da", "**L'intel**ligence **d**e **l'hom**me **q**u'il **a** **d'aut**res, **O'Bri**en **İsta**nbul'da"],
@@ -76,8 +76,8 @@ const EXACT: Array<[string, string]> = [
   // A code span that crosses a cell's pipe is still code to a reader that splits the row first.
   ['| a | b |\n|---|---|\n| ` x | `code words` z |\n\nafter words', '| **a** | **b** |\n|---|---|\n| ` x | `code words` **z** |\n\n**aft**er **wor**ds'],
   // A definition over several lines keeps its title.
-  ['[docs]:\nhttps://example.com/guide\n"Title words"\n\nSee [docs] now.', '[docs]:\nhttps://example.com/guide\n"Title words"\n\n**S**ee [docs] **n**ow.'],
-  ['[docs]: https://example.com "Title\nmore words"\n\nSee [docs] now.', '[docs]: https://example.com "Title\nmore words"\n\n**S**ee [docs] **n**ow.'],
+  ['[docs]:\nhttps://docs.localhost/guide\n"Title words"\n\nSee [docs] now.', '[docs]:\nhttps://docs.localhost/guide\n"Title words"\n\n**S**ee [docs] **n**ow.'],
+  ['[docs]: https://docs.localhost "Title\nmore words"\n\nSee [docs] now.', '[docs]: https://docs.localhost "Title\nmore words"\n\n**S**ee [docs] **n**ow.'],
   // A `<` before a code span does not hide the span.
   ['Compare a <`> b` words here.', '**Comp**are **a** <`> b` **wor**ds **he**re.'],
   // A reply that has streamed up to a newline is still being written.
@@ -87,7 +87,7 @@ const EXACT: Array<[string, string]> = [
   ['x*y**a*****ax_ya* more **a x**y more', 'x*y**a*****ax_ya* **mo**re **a x**y **mo**re'],
   [' __ *x**y* **a*x_y**x*ya** more', ' __ *x**y* **a*x_y**x*ya** more'],
   // Where markdown readers disagree, what any of them keeps stays as written.
-  ['Text](http://example.com)x words\n\nEnd words', '**Te**xt](http://example.com)x **wor**ds\n\n**E**nd **wor**ds'],
+  ['Text](http://docs.localhost)x words\n\nEnd words', '**Te**xt](http://docs.localhost)x **wor**ds\n\n**E**nd **wor**ds'],
   ['![``]()ç`` words\n\nEnd words', '![``]()ç`` **wor**ds\n\n**E**nd **wor**ds'],
   ['$$<$$\nnear > words\n\nEnd words', '$$<$$\nnear > **wor**ds\n\n**E**nd **wor**ds'],
   ['http://![ alt words]()\n\nEnd words', 'http://![ alt words]()\n\n**E**nd **wor**ds'],
@@ -120,9 +120,9 @@ const ADVERSARIAL: Record<string, string> = {
   german: "Donaudampfschifffahrtsgesellschaftskapitän fährt",
   turkish: "İstanbul ılık ışık Iğdır çiçekçi",
   footnote: "Text with a note[^1].\n\n[^1]: The footnote body text.",
-  refdef: "See [the docs][docs] and [docs].\n\n[docs]: https://example.com \"Title here\"",
-  refshortcut: "See [docs] here.\n\n[docs]: https://example.com",
-  refcollapsed: "See [docs][] here.\n\n[docs]: https://example.com",
+  refdef: "See [the docs][docs] and [docs].\n\n[docs]: https://docs.localhost \"Title here\"",
+  refshortcut: "See [docs] here.\n\n[docs]: https://docs.localhost",
+  refcollapsed: "See [docs][] here.\n\n[docs]: https://docs.localhost",
   table: "| Name | Value |\n|------|-------|\n| alpha | beta gamma |\n| a \\| b | c |",
   table_code_pipe: "| cmd | x | desc |\n|---|---|---|\n| `a|b` | pipe words |",
   nested_list: "- outer item\n  - inner item text\n    - deeper item\n\n1. first\n   continued line",
@@ -134,7 +134,7 @@ const ADVERSARIAL: Record<string, string> = {
   math_inline: "Euler: $e^{i\\pi} + 1 = 0$ and $\\alpha + \\beta$",
   math_block: "$$\n\\frac{a}{b} = \\sum_{i} x_i\n$$",
   long_word: "aaaaa Pneumonoultramicroscopicsilicovolcanoconiosis",
-  domain: "Visit example.com or docs.example.com today",
+  domain: "Visit docs.localhost or docs.docs.localhost today",
   path: "Edit src/foo/bar.ts and ./hooks/register.tsx then ~/.config/settings.json",
   winpath: "C:\\Users\\name\\file.txt",
   snake: "set max_output_lines and MAX_OUTPUT here",
@@ -155,10 +155,10 @@ const ADVERSARIAL: Record<string, string> = {
   link_title: "[link text](https://x.com \"Some title\")",
   link_parens: "[wiki](https://en.wikipedia.org/wiki/Foo_(bar)) after",
   link_angle: "[a](<path with spaces.md>) after",
-  autolink: "<https://example.com> and <me@x.com>",
-  url_paren: "(https://example.com/a_(b)) done",
-  url_trailing_period: "Go to https://example.com.",
-  email: "mail me@example.com now",
+  autolink: "<https://docs.localhost> and <me@x.com>",
+  url_paren: "(https://docs.localhost/a_(b)) done",
+  url_trailing_period: "Go to https://docs.localhost.",
+  email: "mail me@docs.localhost now",
   escaped: "\\*not emphasis\\* and \\_x\\_",
   backslash_line: "line one\\\nline two",
   hard_break: "line one  \nline two",
@@ -240,12 +240,12 @@ const ADVERSARIAL: Record<string, string> = {
   quote_lazy: "> quoted\ncontinued lazy",
   setext_in_list: "- a\n  ---",
   link_with_bold_text: "[**bold** link](u)",
-  autolink_ftp: "ftp://files.example.com/pub",
+  autolink_ssh: "ssh://files.docs.localhost/pub",
   mailto: "mailto:a@b.co",
   file_url: "file:///Users/x/file.txt",
   url_with_trailing_star: "**see https://a.com**",
   url_underscore: "https://a.com/foo_bar_baz",
-  www_bare: "www.example.com/path_here",
+  www_bare: "www.docs.localhost/path_here",
   ipv4: "connect 127.0.0.1:8080",
   version: "v1.2.3-beta",
   hex: "color #ff00aa and 0xdeadbeef",
@@ -312,33 +312,33 @@ const ADVERSARIAL: Record<string, string> = {
   html_pi: "text <?php echo words ?> text",
   html_block_with_markdown: "<div>\n\n**bold words** and plain words\n\n</div>",
   html_details: "<details>\n<summary>Show words</summary>\n\nHidden words here\n\n</details>\n\nAfter words",
-  autolink_uri: "<https://example.com/a_b> and <mailto:x@example.com> and <ftp://example.com/f>",
-  autolink_email: "write <name@example.com> soon",
+  autolink_uri: "<https://docs.localhost/a_b> and <mailto:x@docs.localhost> and <ssh://docs.localhost/f>",
+  autolink_email: "write <name@docs.localhost> soon",
   autolink_custom: "open <obsidian://vault/Note> words",
-  url_http_inline: "see http://example.com/path?q=a_b&r=2 now",
-  url_https_trailing: "Visit https://example.com/path, then https://example.com/other.",
-  url_ftp: "get ftp://files.example.com/pub/file_name.tar.gz today",
-  url_mailto: "contact mailto:team@example.com today",
+  url_http_inline: "see http://docs.localhost/path?q=a_b&r=2 now",
+  url_https_trailing: "Visit https://docs.localhost/path, then https://docs.localhost/other.",
+  url_ssh: "get ssh://files.docs.localhost/pub/file_name.tar.gz today",
+  url_mailto: "contact mailto:team@docs.localhost today",
   url_file: "open file:///Users/name/My_File.txt today",
-  url_www: "visit www.example.com/some_path today",
-  url_wrapped_bold: "**https://example.com** and __https://example.com/x__",
-  url_after_colon: "see:https://example.com now",
-  url_in_link_text: "[https://example.com](https://example.com) words",
-  url_angle_in_text: "words <https://example.com/x_y> more words",
+  url_www: "visit www.docs.localhost/some_path today",
+  url_wrapped_bold: "**https://docs.localhost** and __https://docs.localhost/x__",
+  url_after_colon: "see:https://docs.localhost now",
+  url_in_link_text: "[https://docs.localhost](https://docs.localhost) words",
+  url_angle_in_text: "words <https://docs.localhost/x_y> more words",
   link_empty_dest: "[words]() and [more words](<>)",
   link_title_single: "[text](u 'Some title here') after",
   link_title_paren: "[text](u (Some title here)) after",
   link_title_multiline: "[text](u\n\"Some title here\") after",
   link_dest_balanced: "[x](https://a.com/f(x(y))z) after words",
   link_dest_escaped: "[x](a\\)b) after words",
-  link_unclosed_stream: "See [the docs](https://example.com/very/lo",
+  link_unclosed_stream: "See [the docs](https://docs.localhost/very/lo",
   link_unclosed_text: "See [the docs and more",
-  link_ref_full: "See [the guide][g] and [other thing][Other].\n\n[g]: https://example.com\n[other]: https://example.com/2",
-  link_ref_shortcut_multi: "Read [Some Guide] now.\n\n[some   guide]: https://example.com",
-  link_ref_collapsed: "Read [guide][] now.\n\n[guide]: https://example.com",
+  link_ref_full: "See [the guide][g] and [other thing][Other].\n\n[g]: https://docs.localhost\n[other]: https://docs.localhost/2",
+  link_ref_shortcut_multi: "Read [Some Guide] now.\n\n[some   guide]: https://docs.localhost",
+  link_ref_collapsed: "Read [guide][] now.\n\n[guide]: https://docs.localhost",
   link_ref_undefined: "Read [undefined label] now.",
-  link_ref_def_title_next: "Read [guide] now.\n\n[guide]: https://example.com\n  \"Some title words\"\n\nafter words",
-  link_ref_def_angle: "Read [guide] now.\n\n[guide]: <https://example.com/a b> 'Title words'",
+  link_ref_def_title_next: "Read [guide] now.\n\n[guide]: https://docs.localhost\n  \"Some title words\"\n\nafter words",
+  link_ref_def_angle: "Read [guide] now.\n\n[guide]: <https://docs.localhost/a b> 'Title words'",
   img_title: "![alt words](img.png \"Title words\") after",
   img_nested_alt: "![a [b] c](img.png) after",
   img_ref_full: "![alt words][logo] after\n\n[logo]: img.png",
@@ -387,16 +387,16 @@ const ADVERSARIAL: Record<string, string> = {
   strike_words: "~~struck words here~~ and ordinary words",
   strike_adjacent: "~~a~~b and a~~b~~ words",
   mid_word_star: "un*frigging*believable words",
-  star_after_url: "https://example.com* words",
+  star_after_url: "https://docs.localhost* words",
   tech_camel: "call useEffect and getElementById then JSON.parse words",
   tech_snake: "set max_output_lines and MAX_OUTPUT now",
   tech_path: "edit src/foo/bar.ts and ./hooks/register.tsx and ~/.config/settings.json",
-  tech_domain: "visit example.com and docs.example.co.uk today",
+  tech_domain: "visit docs.localhost and docs.example.co.uk today",
   tech_version: "needs v1.2.3 and 2.0.0-beta.1 and ES2015",
   tech_flags: "pass --dry-run and -rf and --no-verify flags",
   tech_hex: "color #ff00aa and 0xdeadbeef and #123",
   tech_digits: "a1 b2c 3d x86_64 utf8 h264 words",
-  tech_email: "mail me@example.com and a.b+c@x.org words",
+  tech_email: "mail me@docs.localhost and a.b+c@x.org words",
   tech_mention: "@someone said #topic words",
   tech_scope: "std::vector and Foo::bar words",
   tech_arrow: "a->b and x=>y and a=b words",
@@ -448,7 +448,7 @@ const ADVERSARIAL: Record<string, string> = {
   list_empty_item: "-\n- words",
   hr_variants: "words\n\n---\n\n***\n\n___\n\nwords",
   front_matter: "---\ntitle: test words\n---\nbody words",
-  def_before_use: "[guide]: https://example.com\n\nRead [guide] words",
+  def_before_use: "[guide]: https://docs.localhost\n\nRead [guide] words",
   def_indented: "   [x]: https://y.z\n\nRead [x] words",
   def_in_para_not_def: "para words\n[x]: https://y.z\nmore words",
   stream_open_star: "Text *",
@@ -477,13 +477,13 @@ const ADVERSARIAL: Record<string, string> = {
   punct_only: "... --- *** ___ ```",
   digits_only: "123 456 7.8",
   table_code_across_cells: "| a | b |\n|---|---|\n| ` x | `code words` z |\n\nafter words",
-  definition_over_lines: "[docs]:\nhttps://example.com/guide\n\"Title words\"\n\nSee [docs] now.",
-  definition_title_over_lines: "[docs]: https://example.com \"Title\nmore words\"\n\nSee [docs] now.",
-  definition_loose_title: "[docs]: https://example.com\n(a parenthesis words)\n\nSee [docs] now.",
+  definition_over_lines: "[docs]:\nhttps://docs.localhost/guide\n\"Title words\"\n\nSee [docs] now.",
+  definition_title_over_lines: "[docs]: https://docs.localhost \"Title\nmore words\"\n\nSee [docs] now.",
+  definition_loose_title: "[docs]: https://docs.localhost\n(a parenthesis words)\n\nSee [docs] now.",
   angle_before_code: "Compare a <`> b` words here.",
   stream_newline_code: "Run `npm install foo\n",
   stream_newline_link: "See [the docs](https://exa\n",
-  close_bracket_without_open: "Text](http://example.com)x words",
+  close_bracket_without_open: "Text](http://docs.localhost)x words",
   image_alt_code: "![``]()ç`` words",
   url_without_domain: "http://![ alt words]()",
   link_text_not_a_link: "[sample](<) and [text words](h g)",
@@ -497,7 +497,7 @@ const ADVERSARIAL: Record<string, string> = {
 }
 
 // Inputs with nothing in them to bold: they come back exactly as given, at every level.
-const UNTOUCHED = ['arabic', 'hebrew', 'cjk', 'thai', 'korean', 'math_block', 'winpath', 'unclosed_tilde', 'emph_inside_word', 'img', 'img_ref', 'numbers_only', 'tab_code', 'fence_in_quote', 'intraword_underscore_bold', 'word_with_bold_mid', 'latex_block_brackets', 'link_def_indented', 'numbers_ordinal', 'zero_width', 'softhyphen', 'diff_block', 'strike_suffix', 'strong_in_em', 'em_in_strong', 'underscore_strong_in_em', 'star_word', 'html_div', 'html_div2', 'html_pre', 'html_table', 'stream_open_fence_quote', 'entity_word_join', 'autolink_ftp', 'mailto', 'file_url', 'url_with_trailing_star', 'url_underscore', 'www_bare', 'version', 'html_entity_nbsp_word', 'math_inline_word', 'heading_bold_suffix', 'em_underscore_adjacent', 'quote_fence_open', 'fence_only_open', 'fence_info_only', 'html_declaration', 'emph_nested', 'star_after_url', 'cjk_zh', 'cjk_ja', 'cjk_ko', 'lao_khmer_myanmar', 'tibetan', 'quote_lazy_emph', 'spaces_only', 'punct_only', 'digits_only']
+const UNTOUCHED = ['arabic', 'hebrew', 'cjk', 'thai', 'korean', 'math_block', 'winpath', 'unclosed_tilde', 'emph_inside_word', 'img', 'img_ref', 'numbers_only', 'tab_code', 'fence_in_quote', 'intraword_underscore_bold', 'word_with_bold_mid', 'latex_block_brackets', 'link_def_indented', 'numbers_ordinal', 'zero_width', 'softhyphen', 'diff_block', 'strike_suffix', 'strong_in_em', 'em_in_strong', 'underscore_strong_in_em', 'star_word', 'html_div', 'html_div2', 'html_pre', 'html_table', 'stream_open_fence_quote', 'entity_word_join', 'autolink_ssh', 'mailto', 'file_url', 'url_with_trailing_star', 'url_underscore', 'www_bare', 'version', 'html_entity_nbsp_word', 'math_inline_word', 'heading_bold_suffix', 'em_underscore_adjacent', 'quote_fence_open', 'fence_only_open', 'fence_info_only', 'html_declaration', 'emph_nested', 'star_after_url', 'cjk_zh', 'cjk_ja', 'cjk_ko', 'lao_khmer_myanmar', 'tibetan', 'quote_lazy_emph', 'spaces_only', 'punct_only', 'digits_only']
 
 test('the regressions give the exact output', () => {
   for (const [input, expected] of EXACT) {
@@ -601,12 +601,12 @@ test('fences are never touched, nor are blocks that look like them', () => {
 test('link destinations, reference labels and footnotes keep working', () => {
   // [input, the part that must come back exactly]
   const links: Array<[string, string]> = [
-    ['[docs](https://example.com/a_(b) "Title words")', '](https://example.com/a_(b) "Title words")'],
+    ['[docs](https://docs.localhost/a_(b) "Title words")', '](https://docs.localhost/a_(b) "Title words")'],
     ['[docs](<path with spaces.md>)', '](<path with spaces.md>)'],
-    ['[a](https://example.com/f(x)y)', '](https://example.com/f(x)y)'],
+    ['[a](https://docs.localhost/f(x)y)', '](https://docs.localhost/f(x)y)'],
     ['![alt words](img.png "Title words")', '![alt words](img.png "Title words")'],
-    ['<https://example.com/a_b>', '<https://example.com/a_b>'],
-    ['[a][ref] and [ref] and [ref][]\n\n[ref]: https://example.com "Title words"', '[ref][]\n\n[ref]: https://example.com "Title words"'],
+    ['<https://docs.localhost/a_b>', '<https://docs.localhost/a_b>'],
+    ['[a][ref] and [ref] and [ref][]\n\n[ref]: https://docs.localhost "Title words"', '[ref][]\n\n[ref]: https://docs.localhost "Title words"'],
     ['note[^1]\n\n[^1]: Footnote words', '[^1]\n\n[^1]: Footnote words'],
   ]
   for (const [input, kept] of links) {
@@ -616,8 +616,8 @@ test('link destinations, reference labels and footnotes keep working', () => {
       expect(out).toContain(kept)
     }
   }
-  expect(bionic('See [docs] here.\n\n[docs]: https://example.com', 3)).toBe('**S**ee [docs] **he**re.\n\n[docs]: https://example.com')
-  expect(bionic('[link](https://example.com/path)', 3)).toBe('[**li**nk](https://example.com/path)')
+  expect(bionic('See [docs] here.\n\n[docs]: https://docs.localhost', 3)).toBe('**S**ee [docs] **he**re.\n\n[docs]: https://docs.localhost')
+  expect(bionic('[link](https://docs.localhost/path)', 3)).toBe('[**li**nk](https://docs.localhost/path)')
 })
 
 test('a word touching existing emphasis is left alone', () => {
@@ -644,7 +644,7 @@ test('output is the input plus whole bold pairs, and bolding twice changes nothi
 
 test('every prefix of a reply streaming in is safe', () => {
   const replies = [
-    'Here is **important** text, `code` and a [link](https://example.com/a_(b) "Title") plus https://example.com/x_y.\n\n```ts\nconst answer = compute(words)\n```\n\n> Quote with *emphasis* and [ref].\n\n- item one\n- item **two**\n\n[ref]: https://example.com',
+    'Here is **important** text, `code` and a [link](https://docs.localhost/a_(b) "Title") plus https://docs.localhost/x_y.\n\n```ts\nconst answer = compute(words)\n```\n\n> Quote with *emphasis* and [ref].\n\n- item one\n- item **two**\n\n[ref]: https://docs.localhost',
     'Ein Satz über **Größe** und `Code`. Cümle: gözünüz çiçekçi **kalın** yazı.\n\n$$\nx = y\n$$\n\n| a | b |\n|---|---|\n| c | d |',
   ]
   for (const reply of replies) {
@@ -695,7 +695,7 @@ test('speed: no quadratic cases, ordinary replies are quick', () => {
   expect(timed('* '.repeat(40000) + 'x')).toBeLessThan(500)
   const ladder = Array.from({ length: 12000 }, (_, i) => '`'.repeat((i % 7) + 1) + 'a').join(' ')
   expect(timed(ladder)).toBeLessThan(500)
-  const reply = 'The quick brown fox jumps over the lazy dog, but `code` and [links](https://example.com/x) stay put. '.repeat(200)
+  const reply = 'The quick brown fox jumps over the lazy dog, but `code` and [links](https://docs.localhost/x) stay put. '.repeat(200)
   expect(reply.length).toBeGreaterThan(20000)
   expect(timed(reply)).toBeLessThan(100)
 })
