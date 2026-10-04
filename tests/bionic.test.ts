@@ -26,7 +26,7 @@ const runs = (s: string) => (s.match(/\*{4,}/g) ?? []).length
 // Inputs and what level 3 makes of them: the regressions, spelled out.
 const EXACT: Array<[string, string]> = [
   ["the **API**s and **config**uration", "**t**he **API**s **a**nd **config**uration"],
-  ["**Note**: be careful, **PR**s and **token**s here", "**Note**: **b**e **care**ful, **PR**s **a**nd **token**s **he**re"],
+  ["**Note**: be careful, **PR**s and **item**s here", "**Note**: **b**e **care**ful, **PR**s **a**nd **item**s **he**re"],
   ["the _id field and user_id column", "**t**he _id field and user_id column"],
   ["Rename _private_name and my_var_name now", "**Ren**ame _private_name and my_var_name now"],
   ["Use __init__ and __name__ in foo_bar.py", "**U**se __init__ **a**nd __name__ **i**n foo_bar.py"],
@@ -35,7 +35,7 @@ const EXACT: Array<[string, string]> = [
   ["A claim[^note] here.\n\n[^note]: The note text.", "**A** **cla**im[^note] **he**re.\n\n[^note]: The note text."],
   ["Read [undefined label] now.", "**Re**ad [**undef**ined **lab**el] **n**ow."],
   ["Edit src/foo/bar.ts, ./hooks/register.tsx and ~/.config/settings.json now", "**Ed**it src/foo/bar.ts, ./hooks/register.tsx **a**nd ~/.config/settings.json **n**ow"],
-  ["set max_output_tokens and call getElementById or useEffect now", "**s**et max_output_tokens **a**nd **ca**ll getElementById **o**r useEffect **n**ow"],
+  ["set max_output_lines and call getElementById or useEffect now", "**s**et max_output_lines **a**nd **ca**ll getElementById **o**r useEffect **n**ow"],
   ["visit example.com and docs.example.co.uk, needs v1.2.3, ES2015 and 0xdeadbeef today", "**vis**it example.com **a**nd docs.example.co.uk, **nee**ds v1.2.3, ES2015 **a**nd 0xdeadbeef **tod**ay"],
   ["pass --dry-run and -rf flags, 3x faster, h264 and x86_64 words", "**pa**ss --dry-run **a**nd -rf **fla**gs, 3x **fas**ter, h264 **a**nd x86_64 **wor**ds"],
   ["mail me@example.com or ftp://files.example.com/a_b or mailto:a@b.co or file:///tmp/x.txt now", "**ma**il me@example.com **o**r ftp://files.example.com/a_b **o**r mailto:a@b.co **o**r file:///tmp/x.txt **n**ow"],
@@ -137,7 +137,7 @@ const ADVERSARIAL: Record<string, string> = {
   domain: "Visit example.com or docs.example.com today",
   path: "Edit src/foo/bar.ts and ./hooks/register.tsx then ~/.config/settings.json",
   winpath: "C:\\Users\\name\\file.txt",
-  snake: "set max_output_tokens and MAX_OUTPUT here",
+  snake: "set max_output_lines and MAX_OUTPUT here",
   camel: "call useEffect and getElementById now",
   dotted: "use console.log and Array.from here",
   unclosed_fence: "Here is code:\n\n```python\ndef foo():\n    return bar",
@@ -266,7 +266,7 @@ const ADVERSARIAL: Record<string, string> = {
   snake_lead: "the _id field and user_id column",
   dunder: "Use __init__ and __name__ in foo_bar.py",
   snake_trailing: "call foo_ then bar_baz_",
-  typical_reply: "I'll update `src/hooks/register.tsx` so the **AbovePrompt** band uses `useState`. Then run npm test in tests/reader.test.tsx and check max_output_tokens.",
+  typical_reply: "I'll update `src/hooks/register.tsx` so the **AbovePrompt** band uses `useState`. Then run npm test in tests/reader.test.tsx and check max_output_lines.",
   heading_bold_suffix: "## **Step 1**s",
   table_bold: "| **Key** | Value |\n|---|---|\n| **API**s | many |",
   glob_cross_para: "Match src/**/*.ts files.\n\nMore text here.\n\n- list item words\n\nAnd **bold** here.",
@@ -389,7 +389,7 @@ const ADVERSARIAL: Record<string, string> = {
   mid_word_star: "un*frigging*believable words",
   star_after_url: "https://example.com* words",
   tech_camel: "call useEffect and getElementById then JSON.parse words",
-  tech_snake: "set max_output_tokens and MAX_OUTPUT now",
+  tech_snake: "set max_output_lines and MAX_OUTPUT now",
   tech_path: "edit src/foo/bar.ts and ./hooks/register.tsx and ~/.config/settings.json",
   tech_domain: "visit example.com and docs.example.co.uk today",
   tech_version: "needs v1.2.3 and 2.0.0-beta.1 and ES2015",
@@ -566,7 +566,7 @@ test('scripts that do not separate words are left as they are', () => {
   expect(bionic('使用 Reader Mode 来写', 3)).toBe('使用 **Rea**der **Mo**de 来写')
 })
 
-test('code, links, URLs, HTML, math and technical tokens stay as written', () => {
+test('code, links, URLs, HTML, math and technical words stay as written', () => {
   for (const name of UNTOUCHED) {
     const input = ADVERSARIAL[name]
     expect(input).toBeDefined()
