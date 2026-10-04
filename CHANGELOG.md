@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.4
+
+- Documentation, support, privacy and terms links in the plugin manifest.
+
 ## 1.0.3
 
 - Test fixtures no longer use environment-variable-like or credential-like sample text. No change to the plugin's behavior.

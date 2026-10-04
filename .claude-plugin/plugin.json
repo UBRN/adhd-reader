@@ -1,13 +1,17 @@
 {
   "name": "adhd-reader",
   "displayName": "ADHD Reader",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Bolds the first letters of each word in Claude's replies so text is easier to scan. Toggle with one click, five intensity levels, nine languages.",
   "author": {
     "name": "Utku Barin"
   },
   "homepage": "https://github.com/UBRN/adhd-reader",
   "repository": "https://github.com/UBRN/adhd-reader",
+  "documentationUrl": "https://github.com/UBRN/adhd-reader#readme",
+  "supportUrl": "https://github.com/UBRN/adhd-reader/issues",
+  "privacyPolicyUrl": "https://github.com/UBRN/adhd-reader#privacy",
+  "termsOfServiceUrl": "https://github.com/UBRN/adhd-reader/blob/main/LICENSE",
   "license": "MIT",
   "keywords": ["reading", "readability", "accessibility", "typography", "bold", "transcript"],
   "types": "./types/index.d.ts",
