@@ -1,0 +1,29 @@
+{
+  "name": "adhd-reader",
+  "displayName": "ADHD Reader",
+  "version": "1.0.0",
+  "description": "Bolds the first letters of each word in Claude's replies so text is easier to scan. Toggle with one click, five intensity levels, nine languages.",
+  "author": {
+    "name": "Utku Barin"
+  },
+  "homepage": "https://github.com/UBRN/adhd-reader",
+  "repository": "https://github.com/UBRN/adhd-reader",
+  "license": "MIT",
+  "keywords": ["reading", "readability", "accessibility", "typography", "bold", "transcript"],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "language": {
+      "type": "string",
+      "title": "Language",
+      "description": "Language of the ADHD Reader labels and messages. Auto follows your Claude Code language setting, then the system locale.",
+      "options": ["Auto", "English", "Türkçe", "Español", "Português (Brasil)", "Deutsch", "Français", "Русский", "日本語", "简体中文"],
+      "default": "Auto"
+    },
+    "showBand": {
+      "type": "boolean",
+      "title": "Show band",
+      "description": "Show the ADHD Reader controls above the prompt.",
+      "default": true
+    }
+  }
+}

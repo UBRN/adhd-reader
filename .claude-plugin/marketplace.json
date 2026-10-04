@@ -1,0 +1,20 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "adhd-reader",
+  "description": "ADHD Reader: bolds the first letters of each word in replies so text is easier to scan.",
+  "owner": {
+    "name": "Utku Barin"
+  },
+  "plugins": [
+    {
+      "name": "adhd-reader",
+      "description": "Bolds the first letters of each word in Claude's replies so text is easier to scan. Toggle with one click, five intensity levels, nine languages.",
+      "author": {
+        "name": "Utku Barin"
+      },
+      "category": "productivity",
+      "source": "./",
+      "homepage": "https://github.com/UBRN/adhd-reader"
+    }
+  ]
+}
