@@ -27,7 +27,7 @@ const runs = (s: string) => (s.match(/\*{4,}/g) ?? []).length
 const EXACT: Array<[string, string]> = [
   ["the **API**s and **config**uration", "**t**he **API**s **a**nd **config**uration"],
   ["**Note**: be careful, **PR**s and **item**s here", "**Note**: **b**e **care**ful, **PR**s **a**nd **item**s **he**re"],
-  ["the _id field and user_id column", "**t**he _id field and user_id column"],
+  ["the _id field and item_id column", "**t**he _id field and item_id column"],
   ["Rename _private_name and my_var_name now", "**Ren**ame _private_name and my_var_name now"],
   ["Use __init__ and __name__ in foo_bar.py", "**U**se __init__ **a**nd __name__ **i**n foo_bar.py"],
   ["See [docs] here.\n\n[docs]: https://docs.localhost", "**S**ee [docs] **he**re.\n\n[docs]: https://docs.localhost"],
@@ -37,7 +37,7 @@ const EXACT: Array<[string, string]> = [
   ["Edit src/foo/bar.ts, ./hooks/register.tsx and ~/.config/settings.json now", "**Ed**it src/foo/bar.ts, ./hooks/register.tsx **a**nd ~/.config/settings.json **n**ow"],
   ["set max_output_lines and call getElementById or useEffect now", "**s**et max_output_lines **a**nd **ca**ll getElementById **o**r useEffect **n**ow"],
   ["visit docs.localhost and docs.example.co.uk, needs v1.2.3, ES2015 and 0xdeadbeef today", "**vis**it docs.localhost **a**nd docs.example.co.uk, **nee**ds v1.2.3, ES2015 **a**nd 0xdeadbeef **tod**ay"],
-  ["pass --dry-run and -rf flags, 3x faster, h264 and x86_64 words", "**pa**ss --dry-run **a**nd -rf **fla**gs, 3x **fas**ter, h264 **a**nd x86_64 **wor**ds"],
+  ["run --dry-run and -rf flags, 3x faster, h264 and x86_64 words", "**r**un --dry-run **a**nd -rf **fla**gs, 3x **fas**ter, h264 **a**nd x86_64 **wor**ds"],
   ["mail me@docs.localhost or ssh://files.docs.localhost/a_b or mailto:a@b.co or file:///tmp/x.txt now", "**ma**il me@docs.localhost **o**r ssh://files.docs.localhost/a_b **o**r mailto:a@b.co **o**r file:///tmp/x.txt **n**ow"],
   ["see https://docs.localhost/a_(b) and <https://docs.localhost/x_y> and www.docs.localhost/p_q ok", "**s**ee https://docs.localhost/a_(b) **a**nd <https://docs.localhost/x_y> **a**nd www.docs.localhost/p_q **o**k"],
   ["这是一个测试句子，用于检查。日本語のテキストです。สวัสดีครับ مرحبا שלום 안녕하세요", "这是一个测试句子，用于检查。日本語のテキストです。สวัสดีครับ مرحبا שלום 안녕하세요"],
@@ -152,8 +152,8 @@ const ADVERSARIAL: Record<string, string> = {
   heading: "# Heading Title\n\n## Second level\n\nSetext Heading\n=============",
   setext2: "Some heading\n---",
   hr: "text above\n\n***\n\ntext below",
-  link_title: "[link text](https://x.com \"Some title\")",
-  link_parens: "[wiki](https://en.wikipedia.org/wiki/Foo_(bar)) after",
+  link_title: "[link text](https://x.localhost \"Some title\")",
+  link_parens: "[wiki](https://docs.localhost/wiki/Foo_(bar)) after",
   link_angle: "[a](<path with spaces.md>) after",
   autolink: "<https://docs.localhost> and <me@x.com>",
   url_paren: "(https://docs.localhost/a_(b)) done",
@@ -188,10 +188,10 @@ const ADVERSARIAL: Record<string, string> = {
   word_with_bold_mid: "pre**bold**post",
   yaml_front: "---\ntitle: test\n---\nbody",
   latex_block_brackets: "\\[ x^2 \\]",
-  link_def_indented: "   [x]: https://y.z",
+  link_def_indented: "   [x]: https://y.localhost",
   numbers_ordinal: "1st 2nd 3rd 21st",
   amp_word: "Q&A session",
-  mention: "@username said #hashtag",
+  mention: "@nickname said #hashtag",
   emoji_shortcode: ":smile: face",
   zero_width: "zero\u200bwidth",
   softhyphen: "hyph\u00adenated",
@@ -208,8 +208,8 @@ const ADVERSARIAL: Record<string, string> = {
   underscore_strong_in_em: "_this __is__ ok_",
   star_math2: "2*x*y and a*b",
   star_word: "foo*bar baz*qux",
-  ref_label_word: "Use [docs] here\n\n[docs]: https://a.b",
-  ref_label_case: "Use [Docs][] here\n\n[docs]: https://a.b",
+  ref_label_word: "Use [docs] here\n\n[docs]: https://a.localhost",
+  ref_label_case: "Use [Docs][] here\n\n[docs]: https://a.localhost",
   footnote_label: "See note[^note] here.\n\n[^note]: Body.",
   html_div: "<div>\nSome text inside div\n</div>",
   html_div2: "<div align=\"center\">\nCentered words here\n\n</div>",
@@ -217,12 +217,12 @@ const ADVERSARIAL: Record<string, string> = {
   html_table: "<table>\n<tr><td>cell words</td></tr>\n</table>",
   indented_list_code: "Text\n\n    - item in code block",
   indented_num_code: "Text\n\n    1. step in code",
-  link_url_paren: "[x](https://a.com/f(x)y) after",
-  link_nested_bracket_url: "[a [b] c](https://x.y/z) d",
-  url_in_text_bold: "see **https://a.com/foo** now",
+  link_url_paren: "[x](https://a.localhost/f(x)y) after",
+  link_nested_bracket_url: "[a [b] c](https://x.localhost/z) d",
+  url_in_text_bold: "see **https://a.localhost/foo** now",
   stream_open_bold: "This is **Important note about",
   stream_open_code: "Run `npm install foo",
-  stream_open_link: "See [the docs](https://exa",
+  stream_open_link: "See [the docs](https://doc",
   stream_open_fence_quote: "> ```py\n> def foo(): return bar",
   stream_open_fence_list: "1. Step\n   ```bash\n   npm run build",
   stream_partial_fence_marker: "Text\n\n``",
@@ -243,14 +243,14 @@ const ADVERSARIAL: Record<string, string> = {
   autolink_ssh: "ssh://files.docs.localhost/pub",
   mailto: "mailto:a@b.co",
   file_url: "file:///Users/x/file.txt",
-  url_with_trailing_star: "**see https://a.com**",
-  url_underscore: "https://a.com/foo_bar_baz",
+  url_with_trailing_star: "**see https://a.localhost**",
+  url_underscore: "https://a.localhost/foo_bar_baz",
   www_bare: "www.docs.localhost/path_here",
   ipv4: "connect 127.0.0.1:8080",
   version: "v1.2.3-beta",
   hex: "color #ff00aa and 0xdeadbeef",
-  cli_flag: "pass --dry-run or -rf",
-  env_var: "$total and ${count} and %value%",
+  cli_flag: "run --dry-run or -rf",
+  dollar_words: "$total and ${count} and %value%",
   html_entity_nbsp_word: "a&nbsp;b",
   decomposed_start: "e\u0301tude",
   decomposed_cut: "re\u0301sume\u0301",
@@ -263,7 +263,7 @@ const ADVERSARIAL: Record<string, string> = {
   nfd_tr: "Masau\u0308stu\u0308 c\u0327ic\u0327ekc\u0327i s\u0327ofo\u0308r ıg\u0306dır",
   nfd_sentence: "Yanıtı okurken go\u0308zu\u0308nu\u0308z kelimelerin bas\u0327ına odaklanır.",
   snake_private: "Rename _private_name and my_var_name now",
-  snake_lead: "the _id field and user_id column",
+  snake_lead: "the _id field and item_id column",
   dunder: "Use __init__ and __name__ in foo_bar.py",
   snake_trailing: "call foo_ then bar_baz_",
   typical_reply: "I'll update `src/hooks/register.tsx` so the **AbovePrompt** band uses `useState`. Then run npm test in tests/reader.test.tsx and check max_output_lines.",
@@ -272,7 +272,7 @@ const ADVERSARIAL: Record<string, string> = {
   glob_cross_para: "Match src/**/*.ts files.\n\nMore text here.\n\n- list item words\n\nAnd **bold** here.",
   glob_alone: "Ignore **/node_modules and *.log files",
   glob_star_ts: "run on *.ts and *.tsx files",
-  cross_heading_tick: "Use the ` key.\n\n## Next heading words\n\nPress ` again.",
+  cross_heading_tick: "Use the ` mark.\n\n## Next heading words\n\nPress ` again.",
   nested_fence_indented: "```markdown\n- item\n    ```\n    code here\n    ```\n- more text\n```\nafter words",
   raw_line_kbd: "<kbd>Ctrl</kbd> copies the selected text",
   em_underscore_adjacent: "_foo_bar baz",
@@ -329,7 +329,7 @@ const ADVERSARIAL: Record<string, string> = {
   link_title_single: "[text](u 'Some title here') after",
   link_title_paren: "[text](u (Some title here)) after",
   link_title_multiline: "[text](u\n\"Some title here\") after",
-  link_dest_balanced: "[x](https://a.com/f(x(y))z) after words",
+  link_dest_balanced: "[x](https://a.localhost/f(x(y))z) after words",
   link_dest_escaped: "[x](a\\)b) after words",
   link_unclosed_stream: "See [the docs](https://docs.localhost/very/lo",
   link_unclosed_text: "See [the docs and more",
@@ -393,7 +393,7 @@ const ADVERSARIAL: Record<string, string> = {
   tech_path: "edit src/foo/bar.ts and ./hooks/register.tsx and ~/.config/settings.json",
   tech_domain: "visit docs.localhost and docs.example.co.uk today",
   tech_version: "needs v1.2.3 and 2.0.0-beta.1 and ES2015",
-  tech_flags: "pass --dry-run and -rf and --no-verify flags",
+  tech_flags: "run --dry-run and -rf and --no-verify flags",
   tech_hex: "color #ff00aa and 0xdeadbeef and #123",
   tech_digits: "a1 b2c 3d x86_64 utf8 h264 words",
   tech_email: "mail me@docs.localhost and a.b+c@x.org words",
@@ -449,8 +449,8 @@ const ADVERSARIAL: Record<string, string> = {
   hr_variants: "words\n\n---\n\n***\n\n___\n\nwords",
   front_matter: "---\ntitle: test words\n---\nbody words",
   def_before_use: "[guide]: https://docs.localhost\n\nRead [guide] words",
-  def_indented: "   [x]: https://y.z\n\nRead [x] words",
-  def_in_para_not_def: "para words\n[x]: https://y.z\nmore words",
+  def_indented: "   [x]: https://y.localhost\n\nRead [x] words",
+  def_in_para_not_def: "para words\n[x]: https://y.localhost\nmore words",
   stream_open_star: "Text *",
   stream_open_bold_empty: "Text **",
   stream_open_underscore: "Text _emph words",
@@ -464,8 +464,8 @@ const ADVERSARIAL: Record<string, string> = {
   stream_open_escape_math: "Euler \\(e^{i",
   stream_open_fence_marker: "Text\n\n``",
   stream_open_fence_tilde: "Text\n\n~~~py\nx = 1",
-  stream_open_url: "See https://exa",
-  stream_open_autolink: "See <https://exa",
+  stream_open_url: "See https://doc",
+  stream_open_autolink: "See <https://doc",
   stream_trailing_newline_open: "This is **open words\n",
   stream_open_then_blank: "This is **open words\n\nnext paragraph words",
   stream_open_list: "- item *open words",
@@ -482,7 +482,7 @@ const ADVERSARIAL: Record<string, string> = {
   definition_loose_title: "[docs]: https://docs.localhost\n(a parenthesis words)\n\nSee [docs] now.",
   angle_before_code: "Compare a <`> b` words here.",
   stream_newline_code: "Run `npm install foo\n",
-  stream_newline_link: "See [the docs](https://exa\n",
+  stream_newline_link: "See [the docs](https://doc\n",
   close_bracket_without_open: "Text](http://docs.localhost)x words",
   image_alt_code: "![``]()ç`` words",
   url_without_domain: "http://![ alt words]()",
@@ -629,14 +629,14 @@ test('a word touching existing emphasis is left alone', () => {
 })
 
 test('output is the input plus whole bold pairs, and bolding twice changes nothing', () => {
-  const keys = Object.keys(ADVERSARIAL)
-  expect(keys.length).toBeGreaterThanOrEqual(150)
-  for (const key of keys) {
-    const input = ADVERSARIAL[key]!
+  const names = Object.keys(ADVERSARIAL)
+  expect(names.length).toBeGreaterThanOrEqual(150)
+  for (const name of names) {
+    const input = ADVERSARIAL[name]!
     for (const level of LEVELS) {
       const out = bionic(input, level)
-      expect(`${key} L${level} ${insertedPairs(input, out) >= 0}`).toBe(`${key} L${level} true`)
-      expect(`${key} L${level} ${bionic(out, level) === out}`).toBe(`${key} L${level} true`)
+      expect(`${name} L${level} ${insertedPairs(input, out) >= 0}`).toBe(`${name} L${level} true`)
+      expect(`${name} L${level} ${bionic(out, level) === out}`).toBe(`${name} L${level} true`)
       expect(runs(out)).toBeLessThanOrEqual(runs(input))
     }
   }
