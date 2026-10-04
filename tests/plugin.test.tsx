@@ -1,7 +1,7 @@
-import { expect, mock, test } from 'claude-code/testing'
+import { expect, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { MESSAGES, fromLocale, fromName } from '../hooks/i18n.ts'
+import { MESSAGES, fromLocale, fromName, resolve } from '../hooks/i18n.ts'
 
 const PLUGIN = 'adhd-reader'
 const SURFACES = ['terminal', 'desktop'] as const
@@ -19,19 +19,16 @@ const BAND = {
 type Setup = {
   store?: Record<string, unknown>
   settings?: Record<string, unknown>
-  env?: Record<string, string>
 }
 
-// The engine beneath the plugin: store, toasts, settings and environment in
-// memory, plus another band drawn under ours.
-function world(on: On, { store = {}, settings = {}, env = {} }: Setup = {}) {
+// The engine beneath the plugin: store, toasts and settings in memory, plus another band drawn under ours.
+function world(on: On, { store = {}, settings = {} }: Setup = {}) {
   const toasts: string[] = []
   on('store.get', ($, e) => ({ value: store[e.key] }))
   on('store.set', ($, e) => {
     store[e.key] = e.value
     return { value: undefined }
   })
-  mock.env(on, env)
   on('settings.read', () => ({ value: settings }))
   on('ui.toast', ($, e) => {
     toasts.push(e.text)
@@ -93,7 +90,7 @@ test('English by default: band, toasts and command description', async ($, on) =
 })
 
 test('Turkish chosen in /config', { options: { language: 'Türkçe' } }, async ($, on) => {
-  const w = world(on, { env: { LANG: 'de_DE.UTF-8' } })
+  const w = world(on, { settings: { language: 'german' } })
   await start($)
   expect(w.toasts[0]).toContain('/okuma')
   for (const surface of SURFACES) {
@@ -125,16 +122,46 @@ test('/config rows are labeled in the chosen language', { options: { language: '
   expect((await row('adhd-reader.showBand')).description).toBe(MESSAGES.de.showBandHelp)
 })
 
-test('Auto follows the language setting, then the locale variables', async ($, on) => {
-  world(on, { settings: { language: 'turkish' }, env: { LANG: 'de_DE.UTF-8' } })
+test('Auto follows the Claude Code language setting', async ($, on) => {
+  world(on, { settings: { language: 'turkish' } })
   await start($)
   const ui = await band($, 'desktop')
   expect((await ui.find({ key: 'toggle' }))?.text).toBe('ADHD Reader: Açık')
   await ui.unmount()
 })
 
+for (const [label, settings] of [
+  ['no setting', {}],
+  ['an empty setting', { language: '' }],
+  ['an unknown setting', { language: 'Klingon' }],
+  ['a non-text setting', { language: 42 }],
+] as const)
+  test(`Auto with ${label} is English`, async ($, on) => {
+    world(on, { settings })
+    await start($)
+    const ui = await band($, 'terminal')
+    expect((await ui.find({ key: 'toggle' }))?.text).toBe('ADHD Reader: On')
+    await ui.unmount()
+  })
+
+test('free text typed in /config is understood', { options: { language: 'portuguese' } }, async ($, on) => {
+  world(on, { settings: { language: 'german' } })
+  await start($)
+  const ui = await band($, 'terminal')
+  expect((await ui.find({ key: 'toggle' }))?.text).toBe('ADHD Reader: Ligado')
+  await ui.unmount()
+})
+
+test('Auto typed in /config follows the setting', { options: { language: 'Auto' } }, async ($, on) => {
+  world(on, { settings: { language: 'Deutsch' } })
+  await start($)
+  const ui = await band($, 'terminal')
+  expect((await ui.find({ key: 'toggle' }))?.text).toBe('ADHD Reader: An')
+  await ui.unmount()
+})
+
 test('a band drawn before Auto settles is redrawn in the detected language', async ($, on) => {
-  world(on, { env: { LANG: 'tr_TR.UTF-8' } })
+  world(on, { settings: { language: 'tr' } })
   const ui = await band($, 'terminal')
   expect((await ui.find({ key: 'toggle' }))?.text).toBe('ADHD Reader: On')
   await start($)
@@ -151,24 +178,35 @@ test('a level argument while off turns the reader on at that level', async ($, o
   expect(w.last()).toBe('ADHD Reader on: Strongest (5/5)')
 })
 
-test('Auto falls back to the first locale variable, C and POSIX skipped', async ($, on) => {
-  world(on, { env: { LC_ALL: 'C', LANG: 'de_DE.UTF-8' } })
-  await start($)
-  const ui = await band($, 'terminal')
-  expect((await ui.find({ key: 'toggle' }))?.text).toBe('ADHD Reader: An')
-  await ui.unmount()
-})
-
 test('language detection helpers', () => {
   expect(fromLocale('pt_PT.UTF-8')).toBe('pt-BR')
   expect(fromLocale('zh_CN')).toBe('zh-Hans')
   expect(fromLocale('zh_TW')).toBeUndefined()
   expect(fromLocale('fi_FI')).toBeUndefined()
-  expect(fromName('Español')).toBe('es')
-  expect(fromName('Русский')).toBe('ru')
-  expect(fromName('日本語')).toBe('ja')
   expect(fromName('Traditional Chinese')).toBeUndefined()
   expect(fromName('Klingon')).toBeUndefined()
+  expect(resolve('Auto', 'fr')).toBe('fr')
+  expect(resolve('', undefined)).toBe('en')
+  expect(resolve('de', 'fr')).toBe('de')
+})
+
+test('names and codes in English and natively, any case or accent', () => {
+  const table: Record<string, string[]> = {
+    en: ['English', 'english', 'ENGLISH', 'en', 'en-US', 'EN'],
+    tr: ['Turkish', 'turkish', 'Türkçe', 'TURKCE', 'turkce', 'Turkce', 'tr', 'tr-TR', 'TR'],
+    es: ['Spanish', 'Español', 'espanol', 'ESPAÑOL', 'es', 'es-MX'],
+    'pt-BR': ['Portuguese', 'Português', 'Portugues', 'Português (Brasil)', 'Brazilian', 'pt', 'pt-BR', 'PT_br'],
+    de: ['German', 'Deutsch', 'DEUTSCH', 'de', 'de-DE'],
+    fr: ['French', 'Français', 'francais', 'FRANÇAIS', 'fr', 'fr-CA'],
+    ru: ['Russian', 'Русский', 'русский', 'РУССКИЙ', 'ru', 'ru-RU'],
+    ja: ['Japanese', '日本語', 'ja', 'ja-JP'],
+    'zh-Hans': ['Chinese', '简体中文', '中文', 'zh', 'zh-Hans', 'zh-CN', 'ZH-cn'],
+  }
+  for (const [lang, names] of Object.entries(table)) for (const name of names) expect([name, fromName(name)]).toEqual([name, lang])
+  for (const name of ['Auto', 'auto', 'AUTO', '', '   ', 'Turkmen', 'Turkmenistan', 'Klingon', 'zh-TW', 'zh-Hant', '繁體中文'])
+    expect([name, fromName(name)]).toEqual([name, undefined])
+  expect(fromName(undefined)).toBeUndefined()
+  expect(fromName(7)).toBeUndefined()
 })
 
 test('all nine tables: same keys, no empty strings, placeholders kept, no long dash', () => {

@@ -227,23 +227,7 @@ export const fmt = (text: string, vars: Record<string, string | number>) =>
 export const normalize = (text: string) =>
   text.normalize('NFD').replace(/\p{M}+/gu, '').replace(/ı/g, 'i').toLowerCase().trim()
 
-// The values of the `language` picker in plugin.json.
-const PICKER: Record<string, Lang> = {
-  English: 'en',
-  Türkçe: 'tr',
-  Español: 'es',
-  'Português (Brasil)': 'pt-BR',
-  Deutsch: 'de',
-  Français: 'fr',
-  Русский: 'ru',
-  日本語: 'ja',
-  简体中文: 'zh-Hans',
-}
-
-export const fromPicker = (value: unknown): Lang | undefined =>
-  typeof value === 'string' ? PICKER[value] : undefined
-
-// A locale tag such as `tr_TR.UTF-8`, `pt-BR` or `zh_CN`.
+// A locale tag such as `pt-BR`, `zh_CN` or `tr`.
 export function fromLocale(tag: string): Lang | undefined {
   const match = /^([a-z]{2,3})(?:[_-]([a-z]{2,4}))?/i.exec(tag.trim())
   if (!match) return undefined
@@ -254,39 +238,30 @@ export function fromLocale(tag: string): Lang | undefined {
   return base in MESSAGES ? (base as Lang) : undefined
 }
 
-// Free text such as Claude Code's `language` setting ("turkish", "Español").
+// Free text, matched on whole words after `normalize`: language names in
+// English and in the language itself ("turkish", "Turkce", "Espanol").
 const NAMES: readonly (readonly [RegExp, Lang])[] = [
-  [/engl/, 'en'],
-  [/turk/, 'tr'],
-  [/span|espan|castellano/, 'es'],
-  [/portug|brasil|brazil/, 'pt-BR'],
-  [/german|deutsch/, 'de'],
-  [/french|franc/, 'fr'],
-  [/russ|русск/, 'ru'],
-  [/japan|日本|nihongo/, 'ja'],
-  [/chinese|中文|汉语|普通话|mandarin/, 'zh-Hans'],
+  [/\b(english|englisch|ingles|anglais)\b/, 'en'],
+  [/\b(turk|turkish|turkce|turkiye)\b/, 'tr'],
+  [/\b(spanish|espanol|castellano)\b/, 'es'],
+  [/\b(portuguese|portugues|brasil|brazil|brazilian)\b/, 'pt-BR'],
+  [/\b(german|deutsch)\b/, 'de'],
+  [/\b(french|francais)\b/, 'fr'],
+  [/\brussian\b|русск/, 'ru'],
+  [/\b(japanese|nihongo)\b|日本/, 'ja'],
+  [/\b(chinese|mandarin)\b|中文|汉语|普通话/, 'zh-Hans'],
 ]
 
-export function fromName(text: string): Lang | undefined {
+// A language from free text (a name or a code), or undefined for Auto, empty
+// and anything unknown.
+export function fromName(text: unknown): Lang | undefined {
+  if (typeof text !== 'string') return undefined
   const name = normalize(text)
   if (!name || /traditional|繁/.test(name)) return undefined
   const found = NAMES.find(([pattern]) => pattern.test(name))
   return found ? found[1] : fromLocale(name.length <= 10 ? name : '')
 }
 
-const usable = (tag: string | undefined) => {
-  const value = tag?.split(':')[0]?.trim()
-  return value && !/^(c|posix)([._@]|$)/i.test(value) ? value : undefined
-}
-
-// The language order: the picker, Claude Code's `language` setting, then the
-// first locale variable that is set (LC_ALL, LC_MESSAGES, LANGUAGE, LANG),
-// then English.
-export function resolve(picked: unknown, setting: unknown, locales: readonly (string | undefined)[]): Lang {
-  const chosen = fromPicker(picked)
-  if (chosen) return chosen
-  const named = typeof setting === 'string' ? fromName(setting) : undefined
-  if (named) return named
-  const tag = locales.map(usable).find(Boolean)
-  return (tag && fromLocale(tag)) || 'en'
-}
+// The language order: the `language` option of this plugin, then Claude Code's
+// own `language` setting, then English.
+export const resolve = (picked: unknown, setting: unknown): Lang => fromName(picked) ?? fromName(setting) ?? 'en'

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1
+
+- The `language` setting is now free text instead of a fixed list. Type a language name (English or in the language itself) or a code such as `tr` or `pt-BR`; case and accents do not matter. Auto, empty or unknown follows the Claude Code `language` setting, then English. Turkmen is no longer mistaken for Turkish.
+- No longer reads system locale environment variables (`LANG`, `LANGUAGE`, `LC_ALL`, `LC_MESSAGES`). Auto now uses only the Claude Code `language` setting, then English.
+- README: new "What it changes" section listing every hook the plugin registers and what each does.
+
 ## 1.0.0
 
 First public release.

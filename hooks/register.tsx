@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { AdhdReaderLevel, AdhdReaderSettings } from '../types'
 import { bionic } from './bionic.ts'
-import { fmt, fromPicker, messages, normalize, resolve } from './i18n.ts'
+import { fmt, fromName, messages, normalize, resolve } from './i18n.ts'
 import type { Lang, Messages } from './i18n.ts'
 
 const COMMAND = 'adhd-reader'
@@ -68,13 +68,7 @@ async function safely<T>(read: () => Promise<T>): Promise<T | undefined> {
 
 async function detect($: EngineInterface, picked: unknown): Promise<Lang> {
   const config = await safely(() => $.settings.read())
-  const locales = [
-    await safely(() => $.env.get('LC_ALL')),
-    await safely(() => $.env.get('LC_MESSAGES')),
-    await safely(() => $.env.get('LANGUAGE')),
-    await safely(() => $.env.get('LANG')),
-  ]
-  return resolve(picked, config?.language, locales)
+  return resolve(picked, config?.language)
 }
 
 async function change($: EngineInterface, fn: (value: AdhdReaderSettings) => AdhdReaderSettings) {
@@ -90,7 +84,7 @@ function report($: EngineInterface, t: Messages, { enabled, level }: AdhdReaderS
 export const register: Register = (on, options) => {
   const showBand = options.showBand !== false
   // An explicit choice is known now; Auto is settled when the session starts.
-  let lang: Lang = fromPicker(options.language) ?? 'en'
+  let lang: Lang = fromName(options.language) ?? 'en'
   const m = () => messages(lang)
 
   on('session.start', async ($, e, next) => {
