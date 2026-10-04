@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3
+
+- Test fixtures no longer use environment-variable-like sample text. No change to the plugin's behavior.
+
 ## 1.0.2
 
 - No longer reads Claude Code's settings. The interface language comes only from the plugin's own `language` option in `/config`; Auto means English.
