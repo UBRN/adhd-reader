@@ -19,7 +19,7 @@ const en = {
   argumentHint: '[on | off | 1-5]',
   intro: 'ADHD Reader bolds the first letters of each word in replies. Change it from the band above the prompt or with /{cmd}.',
   languageLabel: 'Language',
-  languageHelp: 'Language of the ADHD Reader labels and messages. Auto follows your settings.',
+  languageHelp: 'Language of the ADHD Reader labels and messages. Auto uses English.',
   showBandLabel: 'Show band',
   showBandHelp: 'Show the ADHD Reader controls above the prompt.',
 } as const
@@ -262,6 +262,3 @@ export function fromName(text: unknown): Lang | undefined {
   return found ? found[1] : fromLocale(name.length <= 10 ? name : '')
 }
 
-// The language order: the `language` option of this plugin, then Claude Code's
-// own `language` setting, then English.
-export const resolve = (picked: unknown, setting: unknown): Lang => fromName(picked) ?? fromName(setting) ?? 'en'

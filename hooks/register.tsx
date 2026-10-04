@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { AdhdReaderLevel, AdhdReaderSettings } from '../types'
 import { bionic } from './bionic.ts'
-import { fmt, fromName, messages, normalize, resolve } from './i18n.ts'
+import { fmt, fromName, messages, normalize } from './i18n.ts'
 import type { Lang, Messages } from './i18n.ts'
 
 const COMMAND = 'adhd-reader'
@@ -58,19 +58,6 @@ function preview(word: string, level: AdhdReaderLevel): [string, string] {
   return match ? [match[1], match[2]] : ['', word]
 }
 
-async function safely<T>(read: () => Promise<T>): Promise<T | undefined> {
-  try {
-    return await read()
-  } catch {
-    return undefined
-  }
-}
-
-async function detect($: EngineInterface, picked: unknown): Promise<Lang> {
-  const config = await safely(() => $.settings.read())
-  return resolve(picked, config?.language)
-}
-
 async function change($: EngineInterface, fn: (value: AdhdReaderSettings) => AdhdReaderSettings) {
   const value = await update($, settings, v => sanitize(fn(v)))
   await $.store.set('settings', value)
@@ -83,17 +70,11 @@ function report($: EngineInterface, t: Messages, { enabled, level }: AdhdReaderS
 
 export const register: Register = (on, options) => {
   const showBand = options.showBand !== false
-  // An explicit choice is known now; Auto is settled when the session starts.
-  let lang: Lang = fromName(options.language) ?? 'en'
+  // Auto, empty or unknown falls back to English.
+  const lang: Lang = fromName(options.language) ?? 'en'
   const m = () => messages(lang)
 
   on('session.start', async ($, e, next) => {
-    const detected = await detect($, options.language)
-    if (detected !== lang) {
-      lang = detected
-      // Anything drawn or described before detection finished was in the fallback language.
-      for (const event of ['ui.render', 'command.describe', 'config.describe'] as const) $.ui.invalidate(event)
-    }
     const saved = await $.store.get('settings')
     if (saved !== undefined) await update($, settings, () => sanitize(saved))
     for (const name of [COMMAND, ALIAS]) {

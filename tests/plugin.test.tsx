@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { MESSAGES, fromLocale, fromName, resolve } from '../hooks/i18n.ts'
+import { MESSAGES, fromLocale, fromName } from '../hooks/i18n.ts'
 
 const PLUGIN = 'adhd-reader'
 const SURFACES = ['terminal', 'desktop'] as const
@@ -18,18 +18,16 @@ const BAND = {
 
 type Setup = {
   store?: Record<string, unknown>
-  settings?: Record<string, unknown>
 }
 
-// The engine beneath the plugin: store, toasts and settings in memory, plus another band drawn under ours.
-function world(on: On, { store = {}, settings = {} }: Setup = {}) {
+// The engine beneath the plugin: store and toasts in memory, plus another band drawn under ours.
+function world(on: On, { store = {} }: Setup = {}) {
   const toasts: string[] = []
   on('store.get', ($, e) => ({ value: store[e.key] }))
   on('store.set', ($, e) => {
     store[e.key] = e.value
     return { value: undefined }
   })
-  on('settings.read', () => ({ value: settings }))
   on('ui.toast', ($, e) => {
     toasts.push(e.text)
     return { value: undefined }
@@ -122,22 +120,9 @@ test('/config rows are labeled in the chosen language', { options: { language: '
   expect((await row('adhd-reader.showBand')).description).toBe(MESSAGES.de.showBandHelp)
 })
 
-test('Auto follows the Claude Code language setting', async ($, on) => {
-  world(on, { settings: { language: 'turkish' } })
-  await start($)
-  const ui = await band($, 'desktop')
-  expect((await ui.find({ key: 'toggle' }))?.text).toBe('ADHD Reader: Açık')
-  await ui.unmount()
-})
-
-for (const [label, settings] of [
-  ['no setting', {}],
-  ['an empty setting', { language: '' }],
-  ['an unknown setting', { language: 'Klingon' }],
-  ['a non-text setting', { language: 42 }],
-] as const)
-  test(`Auto with ${label} is English`, async ($, on) => {
-    world(on, { settings })
+for (const language of ['Auto', '', 'Klingon'])
+  test(`language option ${JSON.stringify(language)} is English`, { options: { language } }, async ($, on) => {
+    world(on)
     await start($)
     const ui = await band($, 'terminal')
     expect((await ui.find({ key: 'toggle' }))?.text).toBe('ADHD Reader: On')
@@ -145,27 +130,10 @@ for (const [label, settings] of [
   })
 
 test('free text typed in /config is understood', { options: { language: 'portuguese' } }, async ($, on) => {
-  world(on, { settings: { language: 'german' } })
+  world(on)
   await start($)
   const ui = await band($, 'terminal')
   expect((await ui.find({ key: 'toggle' }))?.text).toBe('ADHD Reader: Ligado')
-  await ui.unmount()
-})
-
-test('Auto typed in /config follows the setting', { options: { language: 'Auto' } }, async ($, on) => {
-  world(on, { settings: { language: 'Deutsch' } })
-  await start($)
-  const ui = await band($, 'terminal')
-  expect((await ui.find({ key: 'toggle' }))?.text).toBe('ADHD Reader: An')
-  await ui.unmount()
-})
-
-test('a band drawn before Auto settles is redrawn in the detected language', async ($, on) => {
-  world(on, { settings: { language: 'tr' } })
-  const ui = await band($, 'terminal')
-  expect((await ui.find({ key: 'toggle' }))?.text).toBe('ADHD Reader: On')
-  await start($)
-  expect((await ui.find({ key: 'toggle' }))?.text).toBe('ADHD Reader: Açık')
   await ui.unmount()
 })
 
@@ -185,9 +153,6 @@ test('language detection helpers', () => {
   expect(fromLocale('fi_FI')).toBeUndefined()
   expect(fromName('Traditional Chinese')).toBeUndefined()
   expect(fromName('Klingon')).toBeUndefined()
-  expect(resolve('Auto', 'fr')).toBe('fr')
-  expect(resolve('', undefined)).toBe('en')
-  expect(resolve('de', 'fr')).toBe('de')
 })
 
 test('names and codes in English and natively, any case or accent', () => {

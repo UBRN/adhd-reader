@@ -48,7 +48,7 @@ Setting a level also switches the reader on. Your choice is remembered between s
 
 Open `/config` to change:
 
-- `language`: free text. Type a language name (English, Türkçe, Español, Português (Brasil), Deutsch, Français, Русский, 日本語, 简体中文) or a code (en, tr, es, pt-BR, de, fr, ru, ja, zh-Hans). Case and accents do not matter. Auto, empty or anything unknown follows the `language` setting of Claude Code, and falls back to English.
+- `language`: free text. Type a language name (English, Türkçe, Español, Português (Brasil), Deutsch, Français, Русский, 日本語, 简体中文) or a code (en, tr, es, pt-BR, de, fr, ru, ja, zh-Hans). Case and accents do not matter. Auto, empty or anything unknown means English.
 - `showBand`: show or hide the band above the prompt.
 
 ## Requirements
@@ -61,7 +61,7 @@ The plugin registers six hooks. Each one is listed here with the event it uses:
 
 - `ui.render` on the reply component: rewrites only how Claude's replies are drawn on screen, bolding the first letters of each word. The stored conversation and what is sent to the model are unchanged.
 - `ui.render` on the area above the prompt: draws the band with the on/off switch, the level controls and a preview word, and keeps whatever else is drawn there.
-- `session.start`: registers the `/adhd-reader` command and the `/okuma` alias, restores your saved on/off and level choice, shows a one-time introduction message, and reads the `language` field of Claude Code's settings to pick the interface language.
+- `session.start`: registers the `/adhd-reader` command and the `/okuma` alias, restores your saved on/off and level choice, shows a one-time introduction message.
 - `command.run`: handles `/adhd-reader` and `/okuma`. It answers with a short on-screen message and adds nothing to the conversation.
 - `command.describe`: translates the description and argument hint of its own two commands, and hides `/okuma` unless the interface language is Türkçe.
 - `config.describe`: translates the labels and descriptions of its own two `/config` rows, `language` and `showBand`.
@@ -70,7 +70,7 @@ It changes nothing else: no other command, setting, instruction, tool descriptio
 
 ## Privacy
 
-Everything runs locally. The plugin makes no network requests and collects or sends no data. It does not read environment variables or credentials; the only setting it reads is the `language` field of Claude Code's settings.
+Everything runs locally. The plugin makes no network requests and collects or sends no data. It does not read environment variables, Claude Code settings or credentials; the interface language comes only from its own `language` option.
 
 ## Notes
 

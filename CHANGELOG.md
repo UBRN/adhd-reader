@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2
+
+- No longer reads Claude Code's settings. The interface language comes only from the plugin's own `language` option in `/config`; Auto means English.
+
 ## 1.0.1
 
 - The `language` setting is now free text instead of a fixed list. Type a language name (English or in the language itself) or a code such as `tr` or `pt-BR`; case and accents do not matter. Auto, empty or unknown follows the Claude Code `language` setting, then English. Turkmen is no longer mistaken for Turkish.
