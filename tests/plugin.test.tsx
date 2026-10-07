@@ -33,6 +33,7 @@ function world(on: On, { store = {} }: Setup = {}) {
     return { value: undefined }
   })
   on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('classic.SessionStart', () => ({}))
   on('command.register', ($, e) => ({ value: { command: e.name } }))
   on('command.describe', ($, e) => ({ description: e.description, argumentHint: e.argumentHint, isHidden: e.isHidden }))
   on('config.describe', ($, e) => ({ label: e.label, description: e.description, isHidden: e.isHidden }))
@@ -378,6 +379,28 @@ test('settings survive a restart', async ($, on) => {
   }
 })
 
+test('the saved choice comes back after /clear, /resume and /branch', async ($, on) => {
+  const store: Record<string, unknown> = { settings: { enabled: false, level: 1 }, introSeen: true }
+  world(on, { store })
+  await $.classic.SessionStart({ source: 'clear' })
+  const ui = await band($, 'terminal')
+  expect((await ui.find({ key: 'toggle' }))?.props.label).toBe('ADHD Reader: Off')
+  expect((await ui.find({ key: 'level' }))?.text).toMatch(/1\/5$/)
+  await ui.press({ key: 'more' })
+  expect(store.settings).toEqual({ enabled: false, level: 2 })
+  await ui.unmount()
+})
+
+test('a change builds on what another session saved', async ($, on) => {
+  const store: Record<string, unknown> = {}
+  world(on, { store })
+  await start($)
+  await run($, '2')
+  store.settings = { enabled: true, level: 4 }
+  await run($, 'off')
+  expect(store.settings).toEqual({ enabled: false, level: 4 })
+})
+
 test('corrupt stored settings fall back field by field', async ($, on) => {
   const store: Record<string, unknown> = {}
   const w = world(on, { store })
@@ -409,5 +432,15 @@ test('intro shows once, and only in an interactive session', async ($, on) => {
   expect(w.toasts).toHaveLength(1)
   expect(store.introSeen).toBe(true)
   await start($)
+  expect(w.toasts).toHaveLength(1)
+})
+
+test('intro waits for an app that draws it', async ($, on) => {
+  const store: Record<string, unknown> = {}
+  const w = world(on, { store })
+  await $.session.start({ cwd: '/', surface: 'vscode', isInteractive: true })
+  expect(w.toasts).toHaveLength(0)
+  expect(store.introSeen).toBeUndefined()
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
   expect(w.toasts).toHaveLength(1)
 })

@@ -1,7 +1,7 @@
 {
   "name": "adhd-reader",
   "displayName": "ADHD Reader",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Bolds the first letters of each word in Claude's replies so text is easier to scan. Toggle with one click, five intensity levels, nine languages.",
   "author": {
     "name": "Utku Barin"

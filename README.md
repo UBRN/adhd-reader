@@ -53,15 +53,18 @@ Open `/config` to change:
 
 ## Requirements
 
-Claude Code 2.1.287 or newer, in the terminal or in the Code tab of the Desktop app. Mods are enabled by default from that version.
+Claude Code 2.1.289 or newer, in the terminal or in the Code tab of the Desktop app. In the Desktop app, `/status` shows the Claude Code version. If you follow the stable update channel, wait until it reaches 2.1.289; before that the plugin installs but does nothing.
+
+It does not draw in the VS Code extension, in `claude -p` runs or in Desktop sessions under WSL. To check that it loaded, run `/plugin`: the Installed tab lists `adhd-reader` with its mod active.
 
 ## What it changes
 
-The plugin registers six hooks. Each one is listed here with the event it uses:
+The plugin registers seven hooks. Each one is listed here with the event it uses:
 
 - `ui.render` on the reply component: rewrites only how Claude's replies are drawn on screen, bolding the first letters of each word. The stored conversation and what is sent to the model are unchanged.
 - `ui.render` on the area above the prompt: draws the band with the on/off switch, the level controls and a preview word, and keeps whatever else is drawn there.
 - `session.start`: registers the `/adhd-reader` command and the `/okuma` alias, restores your saved on/off and level choice, shows a one-time introduction message.
+- `classic.SessionStart` after `/clear`, `/resume` and `/branch`: restores your saved on/off and level choice, which those commands reset.
 - `command.run`: handles `/adhd-reader` and `/okuma`. It answers with a short on-screen message and adds nothing to the conversation.
 - `command.describe`: translates the description and argument hint of its own two commands, and hides `/okuma` unless the interface language is Türkçe.
 - `config.describe`: translates the labels and descriptions of its own two `/config` rows, `language` and `showBand`.

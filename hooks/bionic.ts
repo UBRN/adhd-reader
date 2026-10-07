@@ -221,6 +221,7 @@ class BlockReader {
       return true
     }
     if (leaf.kind === 'raw') {
+      if (leaf === RAW_UNTIL_BLANK && indent < 4 && startsLeaf(body)) return false
       if (leaf.end ? leaf.end.test(body) : body === '') this.leaf = null
       return true
     }
@@ -297,6 +298,7 @@ class BlockReader {
     DEFINITION.lastIndex = at
     const definition = DEFINITION.exec(this.text)
     if (!definition || !definition[1]!.trim() || BLANK_LINE.test(definition[0])) return false
+    if (definition[0].split('\n').slice(1).some(line => startsLeaf(line.replace(/^[ \t>]*/, '')))) return false
     LOOSE_TITLE.lastIndex = DEFINITION.lastIndex
     this.skipUntil = !definition[2] && LOOSE_TITLE.test(this.text) ? LOOSE_TITLE.lastIndex : DEFINITION.lastIndex
     return true
@@ -433,7 +435,7 @@ function isLazyContinuation(line: string, pos: number): boolean {
   if (at >= line.length) return false
   if (indent >= 4) return true
   const body = line.slice(at)
-  return body[0] !== '>' && !listItem(line, at, true) && !startsLeaf(body)
+  return body[0] !== '>' && !listItem(line, at, false) && !startsLeaf(body)
 }
 
 function cellCount(row: string): number {
@@ -472,6 +474,8 @@ const TAG_OR_AUTOLINK = new RegExp(
   `${OPEN_TAG}|${CLOSING_TAG}|<[A-Za-z][A-Za-z0-9+.-]{1,31}:[^\\s<>]*>|<[^\\s<>@]+@[^\\s<>]+>`,
   'y',
 )
+const MARKED_SKIP = /\[[^[\]]*?\]\((?:\\.|[^\\()]|\((?:\\.|[^\\()])*\))*\)|`[^`]*?`|<[^<>]*?>/g
+const ASTRAL_ESCAPE = /\\[\p{P}\p{S}](?<=[\u{10000}-\u{10FFFF}])/gu
 const HTML_SPANS: Array<[open: string, close: string]> = [
   ['<!--', '-->'],
   ['<![CDATA[', ']]>'],
@@ -538,6 +542,13 @@ class InlineScan {
         default: i = this.bareUrl(i)
       }
     }
+    // Claude Code's marked hides code-like and tag-like spans from emphasis with a
+    // looser pairing than its own parsers use; bold put there shows as `**`.
+    for (const m of s.matchAll(MARKED_SKIP)) if (s.charCodeAt(m.index) !== OPEN_BRACKET) this.protect(m.index, m.index + m[0].length, OPAQUE)
+    // An escaped astral symbol shifts marked's emphasis mask by one for all text before it.
+    let drift = -1
+    for (const m of s.matchAll(ASTRAL_ESCAPE)) drift = m.index + m[0].length
+    if (drift >= 0) this.protect(0, drift, OPAQUE)
     const stray = matchEmphasis(this.runs, (start, end) => this.protect(start, end, OPAQUE))
     // A delimiter that matches nothing leaves the reading of the scope uncertain,
     // and readers differ on it. While streaming it opens what is still to come,

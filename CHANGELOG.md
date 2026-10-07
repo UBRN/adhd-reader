@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.6
+
+- Your on/off and level choice is kept after `/clear`, `/resume` and `/branch`. Before, those commands switched the reader back on at level 3.
+- With two sessions open, a change in one builds on what the other saved instead of undoing it.
+- No more literal `**` in replies that compare values with `<` and `>`, or that mix single and double backticks.
+- Code blocks that start a numbered list item, or follow a lone tag line or a `[label]:` line, are no longer bolded inside.
+- An escaped emoji no longer garbles the bold words before it.
+- The introduction waits for the terminal or the Desktop app instead of being used up where it cannot be shown.
+- The `/config` help for `language` now says Auto uses English in every language.
+- README: minimum Claude Code version is 2.1.289; notes on the stable channel and where the plugin does not draw.
+
 ## 1.0.5
 
 - Links with any scheme (for example `ssh://`) are now left as written, not only `http`, `https` and `ftp`.

@@ -98,6 +98,18 @@ const EXACT: Array<[string, string]> = [
   ['- <div>\nlazy words\n\nEnd words', '- <div>\nlazy words\n\n**E**nd **wor**ds'],
   ['> quoted words\n<span>\nlazy words\n\nEnd words', '> **quo**ted **wor**ds\n<span>\nlazy words\n\n**E**nd **wor**ds'],
   ['Some `code\n<span>\nwords` here', '**So**me `code\n<span>\nwords` here'],
+  // Claude Code's markdown hides <...> and `...` spans from emphasis with its own pairing.
+  ["If a < b the loop ends, and if c > d it goes on.","**I**f **a** < b the loop ends, and if c > **d** **i**t **go**es **o**n."],
+  ["Use ``a ` b`` then some words and `x` here.","**U**se ``a ` b`` then some words and `x` **he**re."],
+  ["Escape with \\` then some words and `x` here.","**Esc**ape **wi**th \\` then some words and `x` **he**re."],
+  // A sibling list item, a lone tag line or a definition-like line does not swallow the fence after it.
+  ["1. Install the package\n2. ```sh\n   npm install words\n   ```\n3. Done","1. **Inst**all **t**he **pack**age\n2. ```sh\n   npm install words\n   ```\n3. **Do**ne"],
+  ["> 1. Install\n> 2. ```sh\n>    npm install words\n>    ```","> 1. **Inst**all\n> 2. ```sh\n>    npm install words\n>    ```"],
+  ["1) Install the package\n2) ```sh\n   npm install words\n   ```","1) **Inst**all **t**he **pack**age\n2) ```sh\n   npm install words\n   ```"],
+  ["Wrap it like this\n<Button>\n```tsx\nconst label = here\n\nreturn label words\n```\nafter words","**Wr**ap **i**t **li**ke **th**is\n<Button>\n```tsx\nconst label = here\n\nreturn label words\n```\n**aft**er **wor**ds"],
+  ["[note]:\n```js\nconst words = here\n```\nafter words","[note]:\n```js\nconst words = here\n```\n**aft**er **wor**ds"],
+  // An escaped astral symbol shifts the renderer's emphasis mask for the text before it.
+  ["Some words here then \\🎉 and more words","Some words here then \\🎉 **a**nd **mo**re **wor**ds"],
 ]
 
 // Adversarial inputs: every one must come out as the input plus whole `**` pairs, and bolding it again must change nothing.

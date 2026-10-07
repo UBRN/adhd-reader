@@ -58,9 +58,18 @@ function preview(word: string, level: AdhdReaderLevel): [string, string] {
   return match ? [match[1], match[2]] : ['', word]
 }
 
+// Copies the saved choice into the session state, which /clear, /resume and /branch reset.
+async function load($: EngineInterface) {
+  const saved = await $.store.get('settings')
+  if (saved !== undefined) await update($, settings, () => sanitize(saved))
+}
+
+// Builds on what the store holds now, so another open session's change is kept.
 async function change($: EngineInterface, fn: (value: AdhdReaderSettings) => AdhdReaderSettings) {
-  const value = await update($, settings, v => sanitize(fn(v)))
+  const saved = await $.store.get('settings')
+  const value = sanitize(fn(saved === undefined ? await read($, settings) : sanitize(saved)))
   await $.store.set('settings', value)
+  await update($, settings, () => value)
   return value
 }
 
@@ -75,17 +84,22 @@ export const register: Register = (on, options) => {
   const m = () => messages(lang)
 
   on('session.start', async ($, e, next) => {
-    const saved = await $.store.get('settings')
-    if (saved !== undefined) await update($, settings, () => sanitize(saved))
+    await load($)
     for (const name of [COMMAND, ALIAS]) {
       await $.command.register({ name, description: m().description, argumentHint: m().argumentHint, immediate: true })
     }
-    if (e.isInteractive && (await $.store.get('introSeen')) !== true) {
+    const drawn = e.surface === 'terminal' || e.surface === 'desktop'
+    if (e.isInteractive && drawn && (await $.store.get('introSeen')) !== true) {
       $.ui.toast(fmt(m().intro, { cmd: lang === 'tr' ? ALIAS : COMMAND }), { timeoutMs: 8000 })
       await $.store.set('introSeen', true)
     }
     return next(e)
   })
+
+  on('classic.SessionStart', { source: ['clear', 'resume', 'fork'] }, async ($, e, next) => {
+    await load($)
+    return next(e)
+  }).catch(() => undefined)
 
   on('command.describe', { command: [COMMAND, ALIAS] }, ($, e, next) =>
     next({
@@ -121,7 +135,7 @@ export const register: Register = (on, options) => {
           )
     report($, m(), value)
     return {}
-  })
+  }).catch(() => ({}))
 
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
     const { enabled, level } = await read($, settings)

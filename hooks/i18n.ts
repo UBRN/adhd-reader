@@ -44,7 +44,7 @@ const tr: Messages = {
   argumentHint: '[aç | kapat | 1-5]',
   intro: 'ADHD Reader yanıtlardaki her kelimenin ilk harflerini kalın yazar. Giriş alanının üstündeki banttan ya da /{cmd} ile değiştirebilirsin.',
   languageLabel: 'Dil',
-  languageHelp: 'ADHD Reader etiketlerinin ve mesajlarının dili. Auto, ayarlarını izler.',
+  languageHelp: 'ADHD Reader etiketlerinin ve mesajlarının dili. Auto, İngilizce kullanır.',
   showBandLabel: 'Bandı göster',
   showBandHelp: 'ADHD Reader denetimlerini giriş alanının üstünde göster.',
 }
@@ -67,7 +67,7 @@ const es: Messages = {
   argumentHint: '[activar | desactivar | 1-5]',
   intro: 'ADHD Reader pone en negrita las primeras letras de cada palabra en las respuestas. Ajústalo desde la barra sobre el campo de texto o con /{cmd}.',
   languageLabel: 'Idioma',
-  languageHelp: 'Idioma de las etiquetas y mensajes de ADHD Reader. Auto sigue tu configuración.',
+  languageHelp: 'Idioma de las etiquetas y mensajes de ADHD Reader. Auto usa inglés.',
   showBandLabel: 'Mostrar barra',
   showBandHelp: 'Muestra los controles de ADHD Reader sobre el campo de texto.',
 }
@@ -90,7 +90,7 @@ const ptBR: Messages = {
   argumentHint: '[ligar | desligar | 1-5]',
   intro: 'O ADHD Reader deixa em negrito as primeiras letras de cada palavra nas respostas. Ajuste pela barra acima do campo de texto ou com /{cmd}.',
   languageLabel: 'Idioma',
-  languageHelp: 'Idioma dos rótulos e mensagens do ADHD Reader. Auto segue suas configurações.',
+  languageHelp: 'Idioma dos rótulos e mensagens do ADHD Reader. Auto usa inglês.',
   showBandLabel: 'Mostrar barra',
   showBandHelp: 'Mostra os controles do ADHD Reader acima do campo de texto.',
 }
@@ -113,7 +113,7 @@ const de: Messages = {
   argumentHint: '[an | aus | 1-5]',
   intro: 'ADHD Reader setzt die ersten Buchstaben jedes Wortes in Antworten fett. Ändern über die Leiste über dem Eingabefeld oder mit /{cmd}.',
   languageLabel: 'Sprache',
-  languageHelp: 'Sprache der Beschriftungen und Meldungen von ADHD Reader. Auto folgt deinen Einstellungen.',
+  languageHelp: 'Sprache der Beschriftungen und Meldungen von ADHD Reader. Auto verwendet Englisch.',
   showBandLabel: 'Leiste anzeigen',
   showBandHelp: 'Zeigt die Steuerung von ADHD Reader über dem Eingabefeld.',
 }
@@ -136,7 +136,7 @@ const fr: Messages = {
   argumentHint: '[activer | désactiver | 1-5]',
   intro: "ADHD Reader met en gras les premières lettres de chaque mot dans les réponses. Réglez-le depuis la barre au-dessus du champ de saisie ou avec /{cmd}.",
   languageLabel: 'Langue',
-  languageHelp: "Langue des libellés et des messages d'ADHD Reader. Auto suit vos paramètres.",
+  languageHelp: "Langue des libellés et des messages d'ADHD Reader. Auto utilise l'anglais.",
   showBandLabel: 'Afficher la barre',
   showBandHelp: "Affiche les commandes d'ADHD Reader au-dessus du champ de saisie.",
 }
@@ -159,7 +159,7 @@ const ru: Messages = {
   argumentHint: '[вкл | выкл | 1-5]',
   intro: 'ADHD Reader выделяет жирным первые буквы каждого слова в ответах. Настройте его на панели над полем ввода или командой /{cmd}.',
   languageLabel: 'Язык',
-  languageHelp: 'Язык надписей и сообщений ADHD Reader. Auto следует вашим настройкам.',
+  languageHelp: 'Язык надписей и сообщений ADHD Reader. Auto использует английский.',
   showBandLabel: 'Показывать панель',
   showBandHelp: 'Показывает элементы управления ADHD Reader над полем ввода.',
 }
@@ -184,7 +184,7 @@ const ja: Messages = {
   argumentHint: '[オン | オフ | 1-5]',
   intro: 'ADHD Reader は返信に含まれる各単語の最初の数文字を太字にします (日本語と中国語の文章には適用されません)。入力欄の上のバーか /{cmd} で変更できます。',
   languageLabel: '言語',
-  languageHelp: 'ADHD Reader のラベルとメッセージの言語。Auto は設定に従います。',
+  languageHelp: 'ADHD Reader のラベルとメッセージの言語。Auto は英語を使います。',
   showBandLabel: 'バーを表示',
   showBandHelp: '入力欄の上に ADHD Reader の操作バーを表示します。',
 }
@@ -207,7 +207,7 @@ const zhHans: Messages = {
   argumentHint: '[开 | 关 | 1-5]',
   intro: 'ADHD Reader 会将回复中每个单词的前几个字母加粗（对中文和日文文本无效）。可在输入框上方的控制栏或用 /{cmd} 调整。',
   languageLabel: '语言',
-  languageHelp: 'ADHD Reader 标签和消息的语言。Auto 跟随你的设置。',
+  languageHelp: 'ADHD Reader 标签和消息的语言。Auto 使用英语。',
   showBandLabel: '显示控制栏',
   showBandHelp: '在输入框上方显示 ADHD Reader 控制栏。',
 }
