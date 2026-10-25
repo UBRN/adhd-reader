@@ -26,6 +26,8 @@ const SHORT_BOLD = [
 const MAX_OUTPUT = 95_000
 const CACHE_ENTRIES = 64
 const CACHE_CHARS = 1_200_000
+// Replies streaming at once that each keep their read paragraphs.
+const MEMOS = 4
 
 // Results of the scanners that look for the end of a construct.
 const NONE = -1
@@ -151,7 +153,7 @@ function readBlocks(text: string): { scopes: Scope[]; labels: Set<string> } {
   const reader = new BlockReader(text)
   reader.read()
   // Every label that might be defined, wherever a reader might find its definition.
-  const labels = new Set(Array.from(text.matchAll(LABELS), label => normalizeLabel(label[1]!)))
+  const labels = new Set(text.includes(']:') ? Array.from(text.matchAll(LABELS), label => normalizeLabel(label[1]!)) : [])
   return { scopes: reader.scopes, labels }
 }
 
@@ -160,6 +162,8 @@ class BlockReader {
   private readonly text: string
   private readonly containers: Container[] = []
   private leaf: Leaf | null = null
+  /** The containers before this index are list items with content: a blank line stays in each. */
+  private filled = 0
   /** Lines starting before this offset belong to a definition already read. */
   private skipUntil = 0
 
@@ -187,11 +191,18 @@ class BlockReader {
     const { line, source } = expandTabs(this.text.slice(start, end))
     let pos = 0
     let matched = 0
-    for (; matched < this.containers.length; matched++) {
-      const next = enter(this.containers[matched]!, line, pos)
-      if (next === NONE) break
-      pos = next
-    }
+    if (indentWidth(line, 0) === line.length) {
+      // A blank line stays in list items with content and leaves the rest.
+      matched = Math.min(this.filled, this.containers.length)
+      while (matched < this.containers.length && isFilled(this.containers[matched]!)) matched++
+      this.filled = matched
+      if (matched > 0) pos = line.length
+    } else
+      for (; matched < this.containers.length; matched++) {
+        const next = enter(this.containers[matched]!, line, pos)
+        if (next === NONE) break
+        pos = next
+      }
     const continued = matched === this.containers.length
     const contentFrom = (at: number): Span => [start + source(at + indentWidth(line, at)), end]
     const leaf = this.leaf
@@ -207,6 +218,7 @@ class BlockReader {
     if (!continued) {
       this.endParagraph()
       this.containers.length = matched
+      this.filled = Math.min(this.filled, matched)
     }
     pos = this.openContainers(line, pos)
     // marked counts a tab after a container's marker as four columns: indented code.
@@ -350,10 +362,20 @@ function expandTabs(text: string): { line: string; source: (pos: number) => numb
   return { line, source: pos => (pos < from.length ? from[pos]! : text.length) }
 }
 
+const isFilled = (container: Container) => !container.quote && !container.empty
+
+// The run of spaces last measured: the container walk asks about the same run at each level.
+let spaceLine: string | undefined
+let spaceFrom = 0
+let spaceEnd = 0
+
 function indentWidth(line: string, pos: number): number {
-  let end = pos
-  while (line.charCodeAt(end) === SPACE) end++
-  return end - pos
+  if (line !== spaceLine || pos < spaceFrom || pos > spaceEnd) {
+    spaceLine = line
+    spaceFrom = spaceEnd = pos
+    while (line.charCodeAt(spaceEnd) === SPACE) spaceEnd++
+  }
+  return spaceEnd - pos
 }
 
 /** Where the line goes on inside the container, or NONE when it leaves it. Content marks an item as not empty. */
@@ -497,8 +519,12 @@ interface DelimiterRun {
   canClose: boolean
 }
 
+// What every inline construct, delimiter and bare URL needs somewhere in the text.
+const INLINE = /[\\`<$![\]*_:]|www\./i
+
 /** Per character of `s`: 0 free, TEXT or OPAQUE. */
 function guard(s: string, open: boolean, labels: ReadonlySet<string>): Uint8Array {
+  if (!INLINE.test(s)) return new Uint8Array(s.length)
   const scan = new InlineScan(s, open, labels)
   scan.run()
   return scan.flags()
@@ -969,7 +995,8 @@ const HAS_LETTER = /\p{L}/u
 const TOKEN = /\S+/g
 const WORD = /\p{L}[\p{L}\p{M}]*(?:['’]\p{L}[\p{L}\p{M}]*)*/gu
 const APOSTROPHE = /['’]/
-const ASCII = /^[\x00-\x7f]*$/
+// Letters below U+0300 and in the Greek and Cyrillic blocks, marks aside, are one grapheme each (U+02BC aside: it is also Thai).
+const SIMPLE = /^[\0-\u02bb\u02bd-\u02ff\u0370-\u0482\u048a-\u052f]*$/
 // A token with any of these is not prose: paths, identifiers, addresses,
 // versions, flags, URLs, anything with a digit.
 const TECHNICAL =
@@ -981,17 +1008,26 @@ const UNSPACED_SCRIPT =
 /** Offsets in `s` where `**` goes: the start and the end of each bold head. */
 function boldPoints(s: string, flags: Uint8Array, level: number): number[] {
   const points: number[] = []
-  for (const token of hideOpaque(s, flags).matchAll(TOKEN)) {
+  const view = hideOpaque(s, flags)
+  // exec loops: matchAll copies the regex on every call.
+  TOKEN.lastIndex = 0
+  for (let token; (token = TOKEN.exec(view)); ) {
     if (TECHNICAL.test(token[0].replaceAll('\u0002', ''))) continue
-    for (const word of token[0].matchAll(WORD)) {
-      const start = token.index! + word.index!
+    WORD.lastIndex = 0
+    for (let word; (word = WORD.exec(token[0])); ) {
+      const start = token.index + word.index
       const end = start + word[0].length
-      if (flags.subarray(start, end).some(flag => flag !== 0)) continue
+      if (!free(flags, start, end)) continue
       if (!standsAlone(s, start, end) || UNSPACED_SCRIPT.test(word[0])) continue
       points.push(start, start + boldLength(word[0], level))
     }
   }
   return points
+}
+
+function free(flags: Uint8Array, start: number, end: number): boolean {
+  for (let k = start; k < end; k++) if (flags[k] !== 0) return false
+  return true
 }
 
 /** `s` with each OPAQUE character replaced by U+0001 and each MARKER by U+0002, so token tests do not see them. */
@@ -1024,7 +1060,7 @@ function isBoundary(ch: string): boolean {
 
 let segmenter: Intl.Segmenter | null | undefined
 function graphemes(s: string): string[] {
-  if (ASCII.test(s)) return s.split('')
+  if (SIMPLE.test(s)) return s.split('')
   if (segmenter === undefined) {
     try {
       segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
@@ -1084,6 +1120,17 @@ function scopePoints(content: string, spans: Span[], scope: Scope, labels: Reado
 interface Memo {
   labels: ReadonlySet<string>
   points: Map<string, number[]>
+  text?: string
+  level?: number
+  /** The scopes read last time, with their points, by where their first line starts. */
+  at?: Map<number, [Scope, number[]]>
+}
+
+function sameScope(a: Scope, b: Scope): boolean {
+  if (a.open !== b.open || a.table !== b.table || a.lines.length !== b.lines.length || a.held.length !== b.held.length) return false
+  for (let k = 0; k < a.held.length; k++) if (a.held[k] !== b.held[k]) return false
+  for (let k = 0; k < a.lines.length; k++) if (a.lines[k]![0] !== b.lines[k]![0] || a.lines[k]![1] !== b.lines[k]![1]) return false
+  return true
 }
 
 /**
@@ -1096,6 +1143,9 @@ export function transform(text: string, level: number, memo?: Memo): string {
   const known =
     memo && memo.labels.size === labels.size && [...labels].every(label => memo.labels.has(label)) ? memo.points : undefined
   const read = new Map<string, number[]>()
+  // A reply streaming in only grows: its finished scopes sit where they sat.
+  const grown = known && memo!.level === level && text.slice(0, memo!.text!.length) === memo!.text ? memo!.at : undefined
+  const at = new Map<number, [Scope, number[]]>()
   const parts: string[] = []
   let from = 0
   let room = MAX_OUTPUT - text.length
@@ -1107,10 +1157,15 @@ export function transform(text: string, level: number, memo?: Memo): string {
       spans.push([length, length + end - start])
       length += end - start + 1
     }
-    const content = scope.lines.map(([start, end]) => text.slice(start, end)).join('\n')
-    const slot = `${level} ${scope.open} ${scope.table} ${scope.held}\n${content}`
-    const points = known?.get(slot) ?? scopePoints(content, spans, scope, labels, level)
-    read.set(slot, points)
+    const last = grown?.get(scope.lines[0]![0])
+    let points = last && sameScope(last[0], scope) ? last[1] : undefined
+    if (!points) {
+      const content = scope.lines.map(([start, end]) => text.slice(start, end)).join('\n')
+      const slot = `${level} ${scope.open} ${scope.table} ${scope.held}\n${content}`
+      points = known?.get(slot) ?? scopePoints(content, spans, scope, labels, level)
+      read.set(slot, points)
+    }
+    at.set(scope.lines[0]![0], [scope, points])
     // Each point adds two characters; past the limit the rest stays plain.
     room -= 2 * points.length
     if (room < 0) break
@@ -1122,7 +1177,7 @@ export function transform(text: string, level: number, memo?: Memo): string {
       from = at
     }
   }
-  if (memo) Object.assign(memo, { labels, points: read })
+  if (memo) Object.assign(memo, { labels, points: read, text, level, at })
   if (!parts.length) return text
   parts.push(text.slice(from))
   return parts.join('')
@@ -1130,17 +1185,25 @@ export function transform(text: string, level: number, memo?: Memo): string {
 
 // ---------------------------------------------------------------------- cache
 
-const cache = new Map<string, string>()
+const cache = new Map<string, [level: number, out: string]>()
 let cachedChars = 0
-let lastMiss = ''
-const memo: Memo = { labels: new Set(), points: new Map() }
+// The last texts read, most recent first.
+const memos: Memo[] = []
 
-function remember(key: string, value: string): string {
+function remember(text: string, level: number): string {
+  // A copy: a slice of a longer string would keep all of that string in the cache.
+  text = (' ' + text).slice(1)
   // A reply streaming in takes the place of its last piece, not of finished replies.
-  if (key.startsWith(lastMiss)) forget(lastMiss)
-  lastMiss = key
-  cache.set(key, value)
-  cachedChars += key.length + value.length
+  // A slice compares far faster than startsWith.
+  const k = memos.findIndex(memo => text.slice(0, memo.text!.length) === memo.text)
+  if (k >= 0) forget(memos[k]!.text!)
+  // A text that goes on from none of them starts from the last one read: a rewritten reply keeps its paragraphs.
+  const memo = k >= 0 ? memos.splice(k, 1)[0]! : { ...(memos[0] ?? { labels: new Set(), points: new Map() }) }
+  if (memos.unshift(memo) > MEMOS) memos.pop()
+  const value = transform(text, level, memo)
+  forget(text)
+  cache.set(text, [level, value])
+  cachedChars += text.length + value.length
   while (cache.size > CACHE_ENTRIES || cachedChars > CACHE_CHARS) forget(cache.entries().next().value![0])
   return value
 }
@@ -1149,17 +1212,16 @@ function forget(entry: string): void {
   const value = cache.get(entry)
   if (value === undefined) return
   cache.delete(entry)
-  cachedChars -= entry.length + value.length
+  cachedChars -= entry.length + value[1].length
 }
 
 /** Level 1..5 (default 3). Text it cannot or need not change comes back as given. */
 export function bionic(text: string, level: number = DEFAULT_LEVEL): string {
   if (typeof text !== 'string' || text.length === 0 || text.length >= MAX_OUTPUT) return text
   const lv = Number.isInteger(level) && level >= 1 && level <= 5 ? level : DEFAULT_LEVEL
-  const key = lv + text
-  const hit = cache.get(key)
-  if (hit === undefined) return remember(key, transform(text, lv, memo))
-  cache.delete(key)
-  cache.set(key, hit)
-  return hit
+  const hit = cache.get(text)
+  if (hit?.[0] !== lv) return remember(text, lv)
+  cache.delete(text)
+  cache.set(text, hit)
+  return hit[1]
 }

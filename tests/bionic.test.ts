@@ -691,10 +691,11 @@ test('a reply streaming in gives what a fresh read of each piece gives', () => {
       expect(bionic(prefix, 3)).toBe(transform(prefix, 3))
     }
   }
+  // Two replies streaming at once, as subagents do.
   const long = fixtures.join('\n\n')
+  const other = fixtures.toReversed().join('\n\n')
   for (let end = 1; end <= long.length; end += 100 + (end % 61)) {
-    const prefix = long.slice(0, end)
-    expect(bionic(prefix, 3)).toBe(transform(prefix, 3))
+    for (const prefix of [long.slice(0, end), other.slice(0, end)]) expect(bionic(prefix, 3)).toBe(transform(prefix, 3))
   }
 })
 
