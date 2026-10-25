@@ -149,7 +149,7 @@ export const register: Register = (on, options) => {
     if (!action || action.kind === 'help') {
       const t = m()
       const what = action ? [t.band, t.controls, t.screen] : [fmt(t.invalid, { arg: e.args.trim() })]
-      for (const text of [...what, fmt(t.usage, { cmd: e.command })]) $.ui.toast(text)
+      for (const text of [...what, fmt(t.usage, { cmd: e.command })]) $.ui.toast(text, { timeoutMs: 12000 })
       return {}
     }
     const value =
