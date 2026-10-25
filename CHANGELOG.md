@@ -2,6 +2,7 @@
 
 ## 1.1.1
 
+- Published as ubrnnn.
 - The saved choice after `/clear`, `/resume` and `/branch` now comes back without a settings hook, so it also works where an organization manages Claude Code.
 
 ## 1.1.0

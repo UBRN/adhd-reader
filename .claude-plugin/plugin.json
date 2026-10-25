@@ -4,7 +4,7 @@
   "version": "1.1.1",
   "description": "Bolds the first letters of each word in Claude's replies so text is easier to scan. Toggle with one click, five intensity levels, nine languages.",
   "author": {
-    "name": "Utku Barin"
+    "name": "ubrnnn"
   },
   "homepage": "https://github.com/UBRN/adhd-reader",
   "repository": "https://github.com/UBRN/adhd-reader",

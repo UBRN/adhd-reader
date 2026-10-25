@@ -3,14 +3,14 @@
   "name": "adhd-reader",
   "description": "ADHD Reader: bolds the first letters of each word in replies so text is easier to scan.",
   "owner": {
-    "name": "Utku Barin"
+    "name": "ubrnnn"
   },
   "plugins": [
     {
       "name": "adhd-reader",
       "description": "Bolds the first letters of each word in Claude's replies so text is easier to scan. Toggle with one click, five intensity levels, nine languages.",
       "author": {
-        "name": "Utku Barin"
+        "name": "ubrnnn"
       },
       "category": "productivity",
       "source": "./",
