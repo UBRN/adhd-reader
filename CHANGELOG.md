@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.2
+
+- Loads again on Claude Code 2.1.289: 1.1.1 failed that version's check of the hooks module.
+
 ## 1.1.1
 
 - Published as ubrnnn.

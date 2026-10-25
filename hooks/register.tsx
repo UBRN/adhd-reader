@@ -88,10 +88,10 @@ export function layout(t: Messages, { enabled, level }: AdhdReaderSettings, colu
   return rows.find(row => width(row) <= columns) ?? rows.at(-1)!
 }
 
-const saved = async ($: EngineInterface) => sanitize(await $.store.get('settings'))
+const stored = async ($: EngineInterface) => sanitize(await $.store.get('settings'))
 
 // While the session state is empty, the saved choice; drawing only reads, so it stays empty until a change.
-const current = async ($: EngineInterface) => (await read($, settings)) ?? saved($)
+const current = async ($: EngineInterface) => (await read($, settings)) ?? stored($)
 
 // Changes run one at a time, so two presses in one tick both count.
 let queue: Promise<unknown> = Promise.resolve()
@@ -99,7 +99,7 @@ let queue: Promise<unknown> = Promise.resolve()
 // Builds on what the store holds now, so another open session's change is kept.
 function change($: EngineInterface, fn: (value: AdhdReaderSettings) => AdhdReaderSettings) {
   const done = queue.then(async () => {
-    const value = fn(await saved($))
+    const value = fn(await stored($))
     await $.store.set('settings', value)
     await update($, settings, () => value)
     return value
@@ -115,7 +115,7 @@ export const register: Register = (on, options) => {
   const t = MESSAGES[lang]
 
   on('session.start', async ($, e, next) => {
-    const value = await saved($)
+    const value = await stored($)
     await update($, settings, () => value)
     for (const name of [COMMAND, ALIAS]) {
       await $.command.register({ name, description: t.description, argumentHint: t.argumentHint, immediate: true })
