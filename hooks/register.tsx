@@ -3,8 +3,8 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { AdhdReaderLevel, AdhdReaderSettings } from '../types'
 import { bionic } from './bionic.ts'
-import { cells, fmt, fromName, messages, normalize } from './i18n.ts'
-import type { Lang, Messages } from './i18n.ts'
+import { MESSAGES, cells, fmt, fromName, normalize } from './i18n.ts'
+import type { Messages } from './i18n.ts'
 
 const COMMAND = 'adhd-reader'
 const ALIAS = 'okuma' // Turkish name, listed only when the interface is Turkish
@@ -13,6 +13,8 @@ const settings = atom({ plugin: 'adhd-reader', key: 'settings' } as const, DEFAU
 
 // Cells between the band's toggle, level stepper and preview.
 const GAP = 2
+// Long enough to read the three toasts the terminal shows at once.
+const READ = { timeoutMs: 12000 }
 
 const isLevel = (value: unknown): value is AdhdReaderLevel =>
   typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 5
@@ -49,19 +51,31 @@ function parse(args: string): Action | undefined {
   return kind && { kind }
 }
 
-const levelName = (m: Messages, level: AdhdReaderLevel) => m[`level${level}`]
+// An unknown argument as the toast echoes it: on one line and cut to 20 cells,
+// so the toast still fits its box in every language.
+function echo(args: string) {
+  let out = ''
+  for (const char of args.replace(/[\s\p{Cc}]+/gu, ' ').trim()) {
+    if (cells(out + char) > 20) return `${out}…`
+    out += char
+  }
+  return out
+}
+
+const levelName = (t: Messages, level: AdhdReaderLevel) => t[`level${level}`]
 
 // The band's texts: the toggle's label, then the level and the preview when they are drawn.
 type Row = [toggle: string, level?: string, preview?: string]
 
 // `- level +` takes the level's cells plus four: two one-cell buttons, two gaps.
-const width = ([toggle, level, preview]: Row) =>
+export const width = ([toggle, level, preview]: Row) =>
   cells(toggle) + (level === undefined ? 0 : GAP + cells(level) + 4) + (preview === undefined ? 0 : GAP + cells(preview))
 
 // The fullest row that fits; when even the last does not, the terminal wraps or cuts it.
-function layout(t: Messages, { enabled, level }: AdhdReaderSettings, columns: number): Row {
-  const long = `${enabled ? '[x]' : '[ ]'} ADHD Reader`
-  const short = `${enabled ? '[x]' : '[ ]'} ADHD`
+export function layout(t: Messages, { enabled, level }: AdhdReaderSettings, columns: number): Row {
+  const box = enabled ? '[x]' : '[ ]'
+  const long = `${box} ADHD Reader`
+  const short = `${box} ADHD`
   // Padded to the language's widest level name, so `+` and the preview never move.
   const widest = Math.max(...([1, 2, 3, 4, 5] as const).map(n => cells(levelName(t, n))))
   const name = levelName(t, level)
@@ -69,7 +83,7 @@ function layout(t: Messages, { enabled, level }: AdhdReaderSettings, columns: nu
   const rows: Row[] = enabled
     ? [[long, named, t.preview], [long, named], [long, `${level}/5`], [short, `${level}/5`], [long], [short]]
     : [[long], [short]]
-  return rows.find(row => width(row) <= columns) ?? rows[rows.length - 1]
+  return rows.find(row => width(row) <= columns) ?? rows.at(-1)!
 }
 
 // Copies the saved choice into the session state, which /clear, /resume and /branch reset.
@@ -85,7 +99,7 @@ let queue: Promise<unknown> = Promise.resolve()
 function change($: EngineInterface, fn: (value: AdhdReaderSettings) => AdhdReaderSettings) {
   const done = queue.then(async () => {
     const saved = await $.store.get('settings')
-    const value = sanitize(fn(saved === undefined ? await read($, settings) : sanitize(saved)))
+    const value = fn(saved === undefined ? await read($, settings) : sanitize(saved))
     await $.store.set('settings', value)
     await update($, settings, () => value)
     return value
@@ -94,26 +108,20 @@ function change($: EngineInterface, fn: (value: AdhdReaderSettings) => AdhdReade
   return done
 }
 
-function report($: EngineInterface, t: Messages, { enabled, level }: AdhdReaderSettings, cmd: string) {
-  $.ui.toast(enabled ? fmt(t.toastOn, { level: levelName(t, level), n: level }) : fmt(t.toastOff, { cmd }))
-}
-
 export const register: Register = (on, options) => {
   const showBand = options.showBand !== false
   // Auto, empty or unknown falls back to English.
-  const lang: Lang = fromName(options.language) ?? 'en'
-  const m = () => messages(lang)
+  const lang = fromName(options.language) ?? 'en'
+  const t = MESSAGES[lang]
 
   on('session.start', async ($, e, next) => {
     await load($)
     for (const name of [COMMAND, ALIAS]) {
-      await $.command.register({ name, description: m().description, argumentHint: m().argumentHint, immediate: true })
+      await $.command.register({ name, description: t.description, argumentHint: t.argumentHint, immediate: true })
     }
     const drawn = e.surface === 'terminal' || e.surface === 'desktop'
     if (e.isInteractive && drawn && (await $.store.get('introSeen')) !== true) {
-      const t = m()
-      for (const text of [fmt(t.intro, { cmd: lang === 'tr' ? ALIAS : COMMAND }), t.band, t.screen])
-        $.ui.toast(text, { timeoutMs: 12000 })
+      for (const text of [fmt(t.intro, { cmd: lang === 'tr' ? ALIAS : COMMAND }), t.band, t.screen]) $.ui.toast(text, READ)
       await $.store.set('introSeen', true)
     }
     return next(e)
@@ -127,8 +135,8 @@ export const register: Register = (on, options) => {
   on('command.describe', { command: [COMMAND, ALIAS] }, ($, e, next) =>
     next({
       ...e,
-      description: m().description,
-      argumentHint: m().argumentHint,
+      description: t.description,
+      argumentHint: t.argumentHint,
       isHidden: e.isHidden || (e.command === ALIAS && lang !== 'tr'),
     }),
   )
@@ -136,8 +144,8 @@ export const register: Register = (on, options) => {
   on('config.describe', { key: ['adhd-reader.language', 'adhd-reader.showBand'] }, ($, e, next) =>
     next(
       e.key === 'adhd-reader.language'
-        ? { ...e, label: m().languageLabel, description: m().languageHelp }
-        : { ...e, label: m().showBandLabel, description: m().showBandHelp },
+        ? { ...e, label: t.languageLabel, description: t.languageHelp }
+        : { ...e, label: t.showBandLabel, description: t.showBandHelp },
     ),
   )
 
@@ -147,12 +155,11 @@ export const register: Register = (on, options) => {
   on('command.run', { command: [COMMAND, ALIAS] }, async ($, e) => {
     const action = parse(e.args)
     if (!action || action.kind === 'help') {
-      const t = m()
-      const what = action ? [t.band, t.controls] : [fmt(t.invalid, { arg: e.args.trim() })]
-      for (const text of [...what, fmt(t.usage, { cmd: e.command })]) $.ui.toast(text, { timeoutMs: 12000 })
+      const what = action ? [t.band, t.controls] : [fmt(t.invalid, { arg: echo(e.args) })]
+      for (const text of [...what, fmt(t.usage, { cmd: e.command })]) $.ui.toast(text, READ)
       return {}
     }
-    const value =
+    const { enabled, level } =
       action.kind === 'status'
         ? await read($, settings)
         : await change($, v =>
@@ -160,7 +167,7 @@ export const register: Register = (on, options) => {
               ? { enabled: true, level: action.level }
               : { ...v, enabled: action.kind === 'toggle' ? !v.enabled : action.kind === 'on' },
           )
-    report($, m(), value, e.command)
+    $.ui.toast(enabled ? fmt(t.toastOn, { level: levelName(t, level), n: level }) : fmt(t.toastOff, { cmd: e.command }))
     return {}
   }).catch(() => ({}))
 
@@ -174,7 +181,7 @@ export const register: Register = (on, options) => {
     const below = await next(e)
     if (!showBand || e.props.hasSurvey) return below
     const value = await read($, settings)
-    const [toggle, status, sample] = layout(m(), value, e.props.bodyColumns)
+    const [toggle, levelText, preview] = layout(t, value, e.props.bodyColumns)
     const { Box, Button, Text } = $.ui.resolve(e)
     // Any level change turns the reader on, as `/adhd-reader <n>` does.
     const by = (n: 1 | -1) => () => change($, v => ({ enabled: true, level: step(v.level, n) }))
@@ -184,18 +191,18 @@ export const register: Register = (on, options) => {
       <Box flexDirection="column">
         <Box key="adhd-reader" columnGap={GAP}>
           <Button key="toggle" plain label={toggle} dimColor onPress={() => change($, v => ({ ...v, enabled: !v.enabled }))} />
-          {status === undefined ? null : (
+          {levelText === undefined ? null : (
             <Box columnGap={1}>
               {value.level > 1 ? <Button key="less" plain label="-" dimColor onPress={by(-1)} /> : blank}
               <Box key="level">
-                <Text dimColor>{status}</Text>
+                <Text dimColor>{levelText}</Text>
               </Box>
               {value.level < 5 ? <Button key="more" plain label="+" dimColor onPress={by(1)} /> : blank}
             </Box>
           )}
-          {sample === undefined ? null : (
+          {preview === undefined ? null : (
             <Box key="preview">
-              <Text dimColor>{bionic(sample, value.level).split('**').map((part, i) => (i % 2 ? <Text key={i} bold>{part}</Text> : part))}</Text>
+              <Text dimColor>{bionic(preview, value.level).split('**').map((part, i) => (i % 2 ? <Text key={i} bold>{part}</Text> : part))}</Text>
             </Box>
           )}
         </Box>

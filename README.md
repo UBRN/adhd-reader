@@ -42,7 +42,7 @@ Click a control, or use the keyboard:
 2. Press Tab to move to `-` or `+`, and Enter to press the selected control.
 3. Press Esc to go back to the prompt.
 
-On a narrow terminal the band drops the preview first, then the level name (`3/5` stays), then shortens its name to `ADHD`, and on a terminal under 22 columns shows only the toggle. The level name is padded to the longest one, and at level 1 and 5 the step that cannot be taken is left blank, so the other controls stay in place at every level.
+On a narrow terminal the band drops the preview first, then the level name (`3/5` stays), then shortens its name to `ADHD`, and on a terminal under 17 columns shows only the toggle. The level name is padded to the longest one, and at level 1 and 5 the step that cannot be taken is left blank, so the other controls stay in place at every level.
 
 The `/adhd-reader` command does the same from the prompt:
 
@@ -62,7 +62,7 @@ Any level change, from the band or the command, also switches the reader on. The
 
 Open `/config` to change:
 
-- `language`: free text. Type a language name (English, Türkçe, Español, Português (Brasil), Deutsch, Français, Русский, 日本語, 简体中文) or a code (en, tr, es, pt-BR, de, fr, ru, ja, zh-Hans). Case and accents do not matter. Auto, empty or anything unknown means English.
+- `language`: free text. Type a language name (English, Türkçe, Español, Português (Brasil), Deutsch, Français, Русский, 日本語, 简体中文) or a code (en, tr, es, pt-BR, de, fr, ru, ja, zh-Hans), also in locale form such as `pt_BR.UTF-8`. Case and accents do not matter. Auto, empty or anything unknown means English.
 - `showBand`: show or hide the band above the prompt. With the band hidden, the mode labels at the right of the prompt footer show `adhd 3/5` while the reader is on.
 
 ## Requirements

@@ -2,7 +2,8 @@ import { expect, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
 import { bionic } from '../hooks/bionic.ts'
-import { MESSAGES, cells, fromLocale, fromName, messages } from '../hooks/i18n.ts'
+import { layout, width } from '../hooks/register.tsx'
+import { MESSAGES, cells, fromName } from '../hooks/i18n.ts'
 import type { Lang } from '../hooks/i18n.ts'
 
 const PLUGIN = 'adhd-reader'
@@ -76,17 +77,13 @@ const band = ($: any, surface: (typeof SURFACES)[number], props: Partial<typeof 
 
 type Drawn = { type: string; props: Record<string, any>; children?: (Drawn | string)[] }
 
-// The tree as the terminal lays it out: plain Buttons bare (`h: label` with a
-// hotkey), others in `[ label ]`, gaps as spaces; bold runs wrapped in `mark`.
+// The tree as the terminal lays it out: the band's plain Buttons as their label,
+// gaps as spaces; bold runs wrapped in `mark`.
 function paint(node: Drawn | string, mark = ''): string {
   if (typeof node === 'string') return node
-  const inner = (node.children ?? []).map(child => paint(child, mark))
   const props = node.props ?? {}
-  if (node.type === 'Button') {
-    const label = props.label ?? inner.join('')
-    if (!props.plain) return `[ ${label} ]`
-    return props.hotkey ? `${props.hotkey}: ${label}` : label
-  }
+  if (node.type === 'Button') return props.label
+  const inner = (node.children ?? []).map(child => paint(child, mark))
   if (node.type === 'Box') return inner.join(props.flexDirection === 'column' ? '\n' : ' '.repeat(props.columnGap ?? 0))
   return props.bold ? `${mark}${inner.join('')}${mark}` : inner.join('')
 }
@@ -186,10 +183,10 @@ test('a level argument while off turns the reader on at that level', async ($, o
 })
 
 test('language detection helpers', () => {
-  expect(fromLocale('pt_PT.UTF-8')).toBe('pt-BR')
-  expect(fromLocale('zh_CN')).toBe('zh-Hans')
-  expect(fromLocale('zh_TW')).toBeUndefined()
-  expect(fromLocale('fi_FI')).toBeUndefined()
+  expect(fromName('pt_PT')).toBe('pt-BR')
+  expect(fromName('zh_CN')).toBe('zh-Hans')
+  expect(fromName('zh_TW')).toBeUndefined()
+  expect(fromName('fi_FI')).toBeUndefined()
   expect(fromName('Traditional Chinese')).toBeUndefined()
   expect(fromName('Klingon')).toBeUndefined()
 })
@@ -204,10 +201,15 @@ test('names and codes in English and natively, any case or accent', () => {
     fr: ['French', 'Français', 'francais', 'FRANÇAIS', 'fr', 'fr-CA'],
     ru: ['Russian', 'Русский', 'русский', 'РУССКИЙ', 'ru', 'ru-RU'],
     ja: ['Japanese', '日本語', 'ja', 'ja-JP'],
-    'zh-Hans': ['Chinese', '简体中文', '中文', 'zh', 'zh-Hans', 'zh-CN', 'ZH-cn'],
+    'zh-Hans': ['Chinese', '简体中文', '中文', 'zh', 'zh-Hans', 'zh-CN', 'ZH-cn', 'zh_CN', 'zh_CN.UTF-8', 'zh-Hans-CN'],
   }
+  // Locale-shaped values, as a system locale is written.
+  table['pt-BR'].push('pt_BR.UTF-8', 'pt-br')
+  table.de.push('de_DE.UTF-8', 'de_DE@euro')
+  table.tr.push('tr_TR.UTF-8')
+  table.ja.push('ja_JP.UTF-8', 'ｊａ')
   for (const [lang, names] of Object.entries(table)) for (const name of names) expect([name, fromName(name)]).toEqual([name, lang])
-  for (const name of ['Auto', 'auto', 'AUTO', '', '   ', 'Turkmen', 'Turkmenistan', 'Klingon', 'zh-TW', 'zh-Hant', '繁體中文'])
+  for (const name of ['Auto', 'auto', 'AUTO', '', '   ', 'Turkmen', 'Turkmenistan', 'Klingon', 'zh-TW', 'zh-Hant', '繁體中文', 'zh_TW.UTF-8', 'zh-Hant-TW', 'fi_FI.UTF-8', 'C.UTF-8', 'POSIX', 'Deutsche'])
     expect([name, fromName(name)]).toEqual([name, undefined])
   expect(fromName(undefined)).toBeUndefined()
   expect(fromName(7)).toBeUndefined()
@@ -221,7 +223,6 @@ test('all nine tables: same keys, no empty strings, placeholders kept, no long d
     expect(Object.keys(table).sort()).toEqual(keys)
     for (const key of keys) {
       const text = table[key]
-      expect(typeof text).toBe('string')
       expect(text.trim().length).toBeGreaterThan(0)
       expect(text.includes('\u2014')).toBe(false)
       const holes = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort()
@@ -243,7 +244,7 @@ test('every language teaches the band path and lists help', () => {
     'zh-Hans': '帮助',
   }
   for (const lang of LANGS) {
-    const t = messages(lang)
+    const t = MESSAGES[lang]
     expect([lang, t.band.includes('ctrl+x') && t.band.includes('Tab')]).toEqual([lang, true])
     expect([lang, t.intro.includes(`/{cmd} ${helpWord[lang]}`)]).toEqual([lang, true])
     expect([lang, t.usage.includes(helpWord[lang]) && t.argumentHint.includes(helpWord[lang])]).toEqual([lang, true])
@@ -309,7 +310,10 @@ test('arguments in any language and case; nothing reaches the transcript', async
     ['ВКЛ', true, 3],
     ['オフ', false, 3],
     ['开', true, 3],
+    ['\u3000ＯＦＦ\u3000', false, 3],
+    ['ｵﾝ', true, 3],
     ['off', false, 3],
+    ['５', true, 5],
     ['  4  ', true, 4],
     ['', false, 4],
     ['toggle', true, 4],
@@ -332,7 +336,7 @@ test('invalid arguments say what was wrong and change nothing', async ($, on) =>
   await start($)
   await run($, '2')
   const before = { ...(w.store.settings as object) }
-  for (const args of ['0', '6', '1.5', 'ac 3', '12', 'xyz', 'constructor', '-1']) {
+  for (const args of ['0', '6', '1.5', 'ac 3', '12', 'xyz', 'constructor', '-1', 'Ⅲ', '٣']) {
     const count = w.toasts.length
     const result = await run($, args)
     expect(result.text).toBeUndefined()
@@ -341,6 +345,15 @@ test('invalid arguments say what was wrong and change nothing', async ($, on) =>
       `"${args}" is not an option. Levels are 1 (light) to 5 (strongest).`,
       'Usage: /adhd-reader [on | off | toggle | status | help | 1-5]',
     ])
+  }
+  // The argument is echoed on one line, cut short.
+  for (const [args, echoed] of [
+    ['on\n\toff', 'on off'],
+    ['x'.repeat(200), `${'x'.repeat(20)}…`],
+    ['強'.repeat(200), `${'強'.repeat(10)}…`],
+  ]) {
+    await run($, args)
+    expect(w.toasts.at(-2)).toBe(`"${echoed}" is not an option. Levels are 1 (light) to 5 (strongest).`)
   }
 })
 
@@ -477,7 +490,7 @@ test('preview: dim, its bold heads only weighted, different at every level', asy
 
 test('every language has a preview that looks different at all five levels', () => {
   for (const lang of LANGS) {
-    const { preview } = messages(lang)
+    const { preview } = MESSAGES[lang]
     expect([lang, preview.split(' ').length]).toEqual([lang, 2])
     expect([lang, new Set([1, 2, 3, 4, 5].map(level => bionic(preview, level))).size]).toEqual([lang, 5])
   }
@@ -535,7 +548,7 @@ test('narrow widths drop the preview, the level name, the long name, then the le
   world(on)
   await start($)
   const rows: Record<number, string> = {}
-  for (const bodyColumns of [75, 40, 35, 25, 20, 15, 8]) {
+  for (const bodyColumns of [75, 40, 35, 25, 20, 17, 16, 15, 8]) {
     const ui = await band($, 'terminal', { bodyColumns })
     rows[bodyColumns] = await row(ui)
     await ui.unmount()
@@ -546,6 +559,8 @@ test('narrow widths drop the preview, the level name, the long name, then the le
     35: '[x] ADHD Reader  - Medium 3/5    +',
     25: '[x] ADHD Reader  - 3/5 +',
     20: '[x] ADHD  - 3/5 +',
+    17: '[x] ADHD  - 3/5 +',
+    16: '[x] ADHD Reader',
     15: '[x] ADHD Reader',
     8: '[x] ADHD',
   })
@@ -557,14 +572,18 @@ for (const lang of LANGS)
     await start($)
     for (const state of ['off', '1', '2', '3', '4', '5']) {
       await run($, state)
+      const value = state === 'off' ? { enabled: false, level: 3 as const } : { enabled: true, level: Number(state) as 1 }
+      // Every width through the layout, and the band drawn wherever the layout changes.
       let previous = 0
       for (let bodyColumns = 8; bodyColumns <= 120; bodyColumns++) {
+        const cellsUsed = width(layout(MESSAGES[lang], value, bodyColumns))
+        expect([state, bodyColumns, cellsUsed <= bodyColumns]).toEqual([state, bodyColumns, true])
+        expect(cellsUsed).toBeGreaterThanOrEqual(previous)
+        if (cellsUsed === previous) continue
+        previous = cellsUsed
         const ui = await band($, 'terminal', { bodyColumns })
-        const width = cells(await row(ui))
+        expect([state, bodyColumns, cells(await row(ui))]).toEqual([state, bodyColumns, cellsUsed])
         await ui.unmount()
-        expect([state, bodyColumns, width <= bodyColumns]).toEqual([state, bodyColumns, true])
-        expect(width).toBeGreaterThanOrEqual(previous)
-        previous = width
       }
       const ui = await band($, 'terminal', { bodyColumns: 120 })
       expect(await ui.find({ key: state === 'off' ? 'toggle' : 'preview' })).toBeDefined()
@@ -576,7 +595,7 @@ for (const lang of LANGS)
   test(`${lang}: + and the preview stay in the same cell at every level`, { options: { language: lang } }, async ($, on) => {
     world(on)
     await start($)
-    const { preview } = messages(lang)
+    const { preview } = MESSAGES[lang]
     const at = new Set<string>()
     for (const level of [1, 2, 3, 4, 5]) {
       await run($, String(level))
@@ -624,15 +643,16 @@ for (const lang of LANGS)
     const w = world(on)
     await start($)
     const counts = [w.toasts.length]
-    for (const args of ['help', 'abcdefghijkl', 'off', '1', '2', '3', '4', '5', 'status']) {
+    const long = ['x'.repeat(200), '強'.repeat(200), 'ab '.repeat(70), 'on\noff', 'a\r\n\u001b[31mb\u0007']
+    for (const args of ['help', 'abcdefghijkl', ...long, 'off', '1', '2', '3', '4', '5', 'status']) {
       const before = w.toasts.length
       await run($, args)
       counts.push(w.toasts.length - before)
     }
     // The terminal shows three toasts at once; a fourth hides the oldest behind "+1 more".
-    expect(counts).toEqual([3, 3, 2, 1, 1, 1, 1, 1, 1, 1])
+    expect(counts).toEqual([3, 3, 2, ...long.map(() => 2), 1, 1, 1, 1, 1, 1, 1])
     for (const text of w.toasts) {
-      expect([text, text.includes('\n'), cells(text) <= 110, wrap(text).length <= 3]).toEqual([text, false, true, true])
+      expect([text, /\p{Cc}/u.test(text), cells(text) <= 110, wrap(text).length <= 3]).toEqual([text, false, true, true])
     }
   })
 

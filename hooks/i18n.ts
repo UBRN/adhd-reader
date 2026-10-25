@@ -220,8 +220,6 @@ export const MESSAGES = { en, tr, es, 'pt-BR': ptBR, de, fr, ru, ja, 'zh-Hans': 
 >
 export type Lang = keyof typeof MESSAGES
 
-export const messages = (lang: Lang): Messages => ({ ...en, ...MESSAGES[lang] })
-
 export const fmt = (text: string, vars: Record<string, string | number>) =>
   text.replace(/\{(\w+)\}/g, (all, name: string) => (name in vars ? String(vars[name]) : all))
 
@@ -231,20 +229,10 @@ const WIDE = /[\p{scx=Han}\p{scx=Hiragana}\p{scx=Katakana}\p{scx=Hangul}　-〿�
 export const cells = (text: string) =>
   [...text.replace(/\p{M}/gu, '')].reduce((sum, char) => sum + (WIDE.test(char) ? 2 : 1), 0)
 
-// Lowercase, accents and other combining marks removed, dotless i folded.
+// Lowercase, full-width forms made plain (`ＯＮ`, `３`), accents and other
+// combining marks removed, dotless i folded.
 export const normalize = (text: string) =>
-  text.normalize('NFD').replace(/\p{M}+/gu, '').replace(/ı/g, 'i').toLowerCase().trim()
-
-// A locale tag such as `pt-BR`, `zh_CN` or `tr`.
-export function fromLocale(tag: string): Lang | undefined {
-  const match = /^([a-z]{2,3})(?:[_-]([a-z]{2,4}))?/i.exec(tag.trim())
-  if (!match) return undefined
-  const base = match[1].toLowerCase()
-  const region = (match[2] ?? '').toLowerCase()
-  if (base === 'pt') return 'pt-BR'
-  if (base === 'zh') return ['tw', 'hk', 'mo', 'hant'].includes(region) ? undefined : 'zh-Hans'
-  return base in MESSAGES ? (base as Lang) : undefined
-}
+  text.normalize('NFKD').replace(/\p{M}+/gu, '').replace(/ı/g, 'i').toLowerCase().trim()
 
 // Free text, matched on whole words after `normalize`: language names in
 // English and in the language itself ("turkish", "Turkce", "Espanol").
@@ -267,6 +255,13 @@ export function fromName(text: unknown): Lang | undefined {
   const name = normalize(text)
   if (!name || /traditional|繁/.test(name)) return undefined
   const found = NAMES.find(([pattern]) => pattern.test(name))
-  return found ? found[1] : fromLocale(name.length <= 10 ? name : '')
+  if (found) return found[1]
+  // A locale tag such as `pt-BR`, `zh_CN`, `de_DE.UTF-8` or `tr`, already lowercased.
+  const tag = /^([a-z]{2,3})((?:[_-][a-z0-9]{2,8})*)(?:[.@].*)?$/.exec(name)
+  if (!tag) return undefined
+  const [, base, rest] = tag
+  if (base === 'pt') return 'pt-BR'
+  if (base === 'zh') return /[_-](tw|hk|mo|hant)\b/.test(rest) ? undefined : 'zh-Hans'
+  return base in MESSAGES ? (base as Lang) : undefined
 }
 
