@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+- The saved choice after `/clear`, `/resume` and `/branch` now comes back without a settings hook, so it also works where an organization manages Claude Code.
+
 ## 1.1.0
 
 - A quieter band: `[x] ADHD Reader  - Medium 3/5    +  Easier reading`. While the reader is off it shows only `[ ] ADHD Reader`.

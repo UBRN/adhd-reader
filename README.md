@@ -73,13 +73,12 @@ It does not draw in the VS Code extension, in `claude -p` runs or in Desktop ses
 
 ## What it changes
 
-The plugin registers up to eight hooks. Each one is listed here with the event it uses:
+The plugin registers up to seven hooks. Each one is listed here with the event it uses:
 
 - `ui.render` on the reply component: rewrites only how Claude's replies are drawn on screen, bolding the first letters of each word. The stored conversation and what is sent to the model are unchanged.
 - `ui.render` on the area above the prompt: draws the band with the on/off switch, the level controls and a two-word preview, and keeps whatever else is drawn there.
 - `ui.render` on the mode labels in the prompt footer, only while `showBand` is off: adds `adhd <level>/5` while the reader is on and keeps the other labels.
-- `session.start`: registers the `/adhd-reader` command and the `/okuma` alias, restores your saved on/off and level choice, shows a one-time introduction message.
-- `classic.SessionStart` after `/clear`, `/resume` and `/branch`: restores your saved on/off and level choice, which those commands reset. Where an organization manages Claude Code, this hook runs only for plugins its managed settings list, so there the reader shows its default (on, level 3) after those commands until your next change, which still starts from your saved choice.
+- `session.start`: registers the `/adhd-reader` command and the `/okuma` alias, restores your saved on/off and level choice, shows a one-time introduction message. After `/clear`, `/resume` and `/branch`, which start no new session, the band and replies read the saved choice directly.
 - `command.run`: handles `/adhd-reader` and `/okuma`. It answers with a short on-screen message and adds nothing to the conversation.
 - `command.describe`: translates the description and argument hint of its own two commands, and hides `/okuma` unless the interface language is Türkçe.
 - `config.describe`: translates the labels and descriptions of its own two `/config` rows, `language` and `showBand`.

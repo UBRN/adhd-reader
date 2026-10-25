@@ -9,7 +9,9 @@ import type { Messages } from './i18n.ts'
 const COMMAND = 'adhd-reader'
 const ALIAS = 'okuma' // Turkish name, listed only when the interface is Turkish
 const DEFAULTS: AdhdReaderSettings = { enabled: true, level: 3 }
-const settings = atom({ plugin: 'adhd-reader', key: 'settings' } as const, DEFAULTS)
+// The session's copy of the saved choice: filled at session start and on each change,
+// empty again after /clear, /resume and /branch, which reset the session state.
+const settings = atom({ plugin: 'adhd-reader', key: 'settings' } as const, null)
 
 // Cells between the band's toggle, level stepper and preview.
 const GAP = 2
@@ -86,11 +88,10 @@ export function layout(t: Messages, { enabled, level }: AdhdReaderSettings, colu
   return rows.find(row => width(row) <= columns) ?? rows.at(-1)!
 }
 
-// Copies the saved choice into the session state, which /clear, /resume and /branch reset.
-async function load($: EngineInterface) {
-  const saved = await $.store.get('settings')
-  if (saved !== undefined) await update($, settings, () => sanitize(saved))
-}
+const saved = async ($: EngineInterface) => sanitize(await $.store.get('settings'))
+
+// While the session state is empty, the saved choice; drawing only reads, so it stays empty until a change.
+const current = async ($: EngineInterface) => (await read($, settings)) ?? saved($)
 
 // Changes run one at a time, so two presses in one tick both count.
 let queue: Promise<unknown> = Promise.resolve()
@@ -98,8 +99,7 @@ let queue: Promise<unknown> = Promise.resolve()
 // Builds on what the store holds now, so another open session's change is kept.
 function change($: EngineInterface, fn: (value: AdhdReaderSettings) => AdhdReaderSettings) {
   const done = queue.then(async () => {
-    const saved = await $.store.get('settings')
-    const value = fn(saved === undefined ? await read($, settings) : sanitize(saved))
+    const value = fn(await saved($))
     await $.store.set('settings', value)
     await update($, settings, () => value)
     return value
@@ -115,7 +115,8 @@ export const register: Register = (on, options) => {
   const t = MESSAGES[lang]
 
   on('session.start', async ($, e, next) => {
-    await load($)
+    const value = await saved($)
+    await update($, settings, () => value)
     for (const name of [COMMAND, ALIAS]) {
       await $.command.register({ name, description: t.description, argumentHint: t.argumentHint, immediate: true })
     }
@@ -126,11 +127,6 @@ export const register: Register = (on, options) => {
     }
     return next(e)
   })
-
-  on('classic.SessionStart', { source: ['clear', 'resume', 'fork'] }, async ($, e, next) => {
-    await load($)
-    return next(e)
-  }).catch(() => undefined)
 
   on('command.describe', { command: [COMMAND, ALIAS] }, ($, e, next) =>
     next({
@@ -161,7 +157,7 @@ export const register: Register = (on, options) => {
     }
     const { enabled, level } =
       action.kind === 'status'
-        ? await read($, settings)
+        ? await current($)
         : await change($, v =>
             action.kind === 'level'
               ? { enabled: true, level: action.level }
@@ -172,7 +168,7 @@ export const register: Register = (on, options) => {
   }).catch(() => ({}))
 
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
-    const { enabled, level } = await read($, settings)
+    const { enabled, level } = await current($)
     if (!enabled) return next(e)
     return next({ ...e, props: { ...e.props, text: bionic(e.props.text, level) } })
   })
@@ -180,7 +176,7 @@ export const register: Register = (on, options) => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const below = await next(e)
     if (!showBand || e.props.hasSurvey) return below
-    const value = await read($, settings)
+    const value = await current($)
     const [toggle, levelText, preview] = layout(t, value, e.props.bodyColumns)
     const { Box, Button, Text } = $.ui.resolve(e)
     // Any level change turns the reader on, as `/adhd-reader <n>` does.
@@ -214,7 +210,7 @@ export const register: Register = (on, options) => {
   // Without the band, the footer's mode labels carry the level while the reader is on.
   if (!showBand)
     on('ui.render', { component: 'SessionMode' }, async ($, e, next) => {
-      const { enabled, level } = await read($, settings)
+      const { enabled, level } = await current($)
       return next(enabled ? { ...e, props: { ...e.props, modes: [...e.props.modes, `adhd ${level}/5`] } } : e)
     }).catch(() => undefined)
 }

@@ -3,6 +3,6 @@ export type AdhdReaderSettings = { enabled: boolean; level: AdhdReaderLevel }
 
 declare module 'claude-code' {
   interface PluginState {
-    'adhd-reader': { settings: AdhdReaderSettings }
+    'adhd-reader': { settings: AdhdReaderSettings | null }
   }
 }

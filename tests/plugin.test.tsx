@@ -46,7 +46,6 @@ function world(on: On, { store = {}, settings = {} }: Setup = {}) {
     return { value: rows as never }
   })
   on('session.start', ($, e) => ({ cwd: e.cwd }))
-  on('classic.SessionStart', () => ({}))
   on('command.register', ($, e) => ({ value: { command: e.name } }))
   on('command.describe', ($, e) => ({ description: e.description, argumentHint: e.argumentHint, isHidden: e.isHidden }))
   on('config.describe', ($, e) => ({ label: e.label, description: e.description, isHidden: e.isHidden }))
@@ -679,7 +678,7 @@ test('settings survive a restart', async ($, on) => {
 test('the saved choice comes back after /clear, /resume and /branch', async ($, on) => {
   const store: Record<string, unknown> = { settings: { enabled: false, level: 1 }, introSeen: true }
   world(on, { store })
-  await $.classic.SessionStart({ source: 'clear' })
+  // Those commands empty the session state and start no new session: the first draw reads the store.
   const ui = await band($, 'terminal')
   expect((await ui.find({ key: 'toggle' }))?.props.label).toBe('[ ] ADHD Reader')
   await ui.press({ key: 'toggle' })
