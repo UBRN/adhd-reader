@@ -62,7 +62,10 @@ const width = ([toggle, level, preview]: Row) =>
 function layout(t: Messages, { enabled, level }: AdhdReaderSettings, columns: number): Row {
   const long = `${enabled ? '[x]' : '[ ]'} ADHD Reader`
   const short = `${enabled ? '[x]' : '[ ]'} ADHD`
-  const named = `${levelName(t, level)} ${level}/5`
+  // Padded to the language's widest level name, so `+` and the preview never move.
+  const widest = Math.max(...([1, 2, 3, 4, 5] as const).map(n => cells(levelName(t, n))))
+  const name = levelName(t, level)
+  const named = `${name} ${level}/5${' '.repeat(widest - cells(name))}`
   const rows: Row[] = enabled
     ? [[long, named, t.preview], [long, named], [long, `${level}/5`], [short, `${level}/5`], [long], [short]]
     : [[long], [short]]
@@ -108,7 +111,9 @@ export const register: Register = (on, options) => {
     }
     const drawn = e.surface === 'terminal' || e.surface === 'desktop'
     if (e.isInteractive && drawn && (await $.store.get('introSeen')) !== true) {
-      $.ui.toast(fmt(m().intro, { cmd: lang === 'tr' ? ALIAS : COMMAND }), { timeoutMs: 12000 })
+      const t = m()
+      for (const text of [fmt(t.intro, { cmd: lang === 'tr' ? ALIAS : COMMAND }), t.band, t.screen])
+        $.ui.toast(text, { timeoutMs: 12000 })
       await $.store.set('introSeen', true)
     }
     return next(e)
@@ -136,13 +141,15 @@ export const register: Register = (on, options) => {
     ),
   )
 
-  // Answers on its own with feedback as a toast, so the conversation stays untouched.
+  // Answers on its own with feedback as toasts, so the conversation stays untouched.
+  // A toast is one line in a small box that shows three wrapped lines, so longer
+  // feedback goes out as several toasts, which stack.
   on('command.run', { command: [COMMAND, ALIAS] }, async ($, e) => {
     const action = parse(e.args)
     if (!action || action.kind === 'help') {
       const t = m()
-      const what = action ? t.help : fmt(t.invalid, { arg: e.args.trim() })
-      $.ui.toast(`${what}\n${fmt(t.usage, { cmd: e.command })}`)
+      const what = action ? [t.band, t.controls, t.screen] : [fmt(t.invalid, { arg: e.args.trim() })]
+      for (const text of [...what, fmt(t.usage, { cmd: e.command })]) $.ui.toast(text)
       return {}
     }
     const value =

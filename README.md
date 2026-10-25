@@ -31,7 +31,7 @@ Then run `/reload-plugins` or start a new session.
 A band above the prompt shows the current state:
 
 ```
-[x] ADHD Reader  - Medium 3/5 +  Easier reading
+[x] ADHD Reader  - Medium 3/5    +  Easier reading
 ```
 
 `[x]` switches the reader on or off, `-` and `+` lower or raise the level, and the two words at the end show how replies look at that level. While the reader is off the band shows only `[ ] ADHD Reader`.
@@ -42,7 +42,7 @@ Click a control, or use the keyboard:
 2. Press Tab to move to `-` or `+`, and Enter to press the selected control.
 3. Press Esc to go back to the prompt.
 
-On a narrow terminal the band drops the preview first, then the level name (`3/5` stays), then shortens its name to `ADHD`, and on a terminal under 22 columns shows only the toggle. At level 1 and 5 the step that cannot be taken is left blank, so the other controls stay in place.
+On a narrow terminal the band drops the preview first, then the level name (`3/5` stays), then shortens its name to `ADHD`, and on a terminal under 22 columns shows only the toggle. The level name is padded to the longest one, and at level 1 and 5 the step that cannot be taken is left blank, so the other controls stay in place at every level.
 
 The `/adhd-reader` command does the same from the prompt:
 

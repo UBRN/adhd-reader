@@ -114,7 +114,7 @@ test('English by default: band, toasts and command description', async ($, on) =
   for (const surface of SURFACES) {
     const ui = await band($, surface)
     expect((await ui.find({ key: 'toggle' }))?.text).toBe('[x] ADHD Reader')
-    expect((await ui.find({ key: 'level' }))?.text).toBe('Medium 3/5')
+    expect((await ui.find({ key: 'level' }))?.text).toBe('Medium 3/5   ')
     await ui.unmount()
   }
   await run($, 'off')
@@ -131,7 +131,7 @@ test('Turkish chosen in /config, whatever Claude Code itself is set to', { optio
   for (const surface of SURFACES) {
     const ui = await band($, surface)
     expect((await ui.find({ key: 'toggle' }))?.text).toBe('[x] ADHD Reader')
-    expect((await ui.find({ key: 'level' }))?.text).toBe('Orta 3/5')
+    expect((await ui.find({ key: 'level' }))?.text).toBe('Orta 3/5    ')
     await ui.unmount()
   }
   await run($, 'kapat', 'okuma')
@@ -139,9 +139,10 @@ test('Turkish chosen in /config, whatever Claude Code itself is set to', { optio
   await run($, '4', 'okuma')
   expect(w.last()).toBe('ADHD Reader açık: Güçlü (4/5)')
   await run($, 'xyz', 'okuma')
-  expect(w.last()).toBe(
-    '"xyz" geçerli bir seçenek değil. Seviyeler 1 (hafif) ile 5 (en güçlü) arası.\nKullanım: /okuma [aç | kapat | değiştir | durum | yardım | 1-5]',
-  )
+  expect(w.toasts.slice(-2)).toEqual([
+    '"xyz" geçerli bir seçenek değil. Seviyeler 1 (hafif) ile 5 (en güçlü) arası.',
+    'Kullanım: /okuma [aç | kapat | değiştir | durum | yardım | 1-5]',
+  ])
   expect((await describe($, 'okuma')).isHidden).toBe(false)
   expect((await describe($, 'okuma')).argumentHint).toBe('[aç | kapat | 1-5 | yardım]')
   expect(w.asked.settings).toBe(0)
@@ -162,7 +163,7 @@ for (const language of ['Auto', '', 'Klingon'])
     const w = world(on, { settings: { language: 'japanese' } })
     await start($)
     const ui = await band($, 'terminal')
-    expect((await ui.find({ key: 'level' }))?.text).toBe('Medium 3/5')
+    expect((await ui.find({ key: 'level' }))?.text).toBe('Medium 3/5   ')
     await ui.unmount()
     expect(w.asked.settings).toBe(0)
   })
@@ -171,7 +172,7 @@ test('free text typed in /config is understood', { options: { language: 'portugu
   world(on)
   await start($)
   const ui = await band($, 'terminal')
-  expect((await ui.find({ key: 'level' }))?.text).toBe('Médio 3/5')
+  expect((await ui.find({ key: 'level' }))?.text).toBe('Médio 3/5 ')
   await ui.unmount()
 })
 
@@ -243,9 +244,7 @@ test('every language teaches the band path and lists help', () => {
   }
   for (const lang of LANGS) {
     const t = messages(lang)
-    for (const text of [t.intro, t.help]) {
-      expect([lang, text.includes('ctrl+x') && text.includes('Tab')]).toEqual([lang, true])
-    }
+    expect([lang, t.band.includes('ctrl+x') && t.band.includes('Tab')]).toEqual([lang, true])
     expect([lang, t.intro.includes(`/{cmd} ${helpWord[lang]}`)]).toEqual([lang, true])
     expect([lang, t.usage.includes(helpWord[lang]) && t.argumentHint.includes(helpWord[lang])]).toEqual([lang, true])
     expect([lang, t.invalid.includes('1') && t.invalid.includes('5')]).toEqual([lang, true])
@@ -324,8 +323,8 @@ test('arguments in any language and case; nothing reaches the transcript', async
   await run($, 'status')
   expect(w.last()).toBe('ADHD Reader on: Strong (4/5)')
   await run($, 'help')
-  expect(w.last()).toBe(`${MESSAGES.en.help}\nUsage: /adhd-reader [on | off | toggle | status | help | 1-5]`)
-  expect(w.last()).toContain('ctrl+x then Tab')
+  const { band, controls, screen } = MESSAGES.en
+  expect(w.toasts.slice(-4)).toEqual([band, controls, screen, 'Usage: /adhd-reader [on | off | toggle | status | help | 1-5]'])
 })
 
 test('invalid arguments say what was wrong and change nothing', async ($, on) => {
@@ -338,9 +337,10 @@ test('invalid arguments say what was wrong and change nothing', async ($, on) =>
     const result = await run($, args)
     expect(result.text).toBeUndefined()
     expect(w.store.settings).toEqual(before)
-    expect(w.toasts.length).toBe(count + 1)
-    expect(w.last().startsWith(`"${args}" is not an option. Levels are 1 (light) to 5 (strongest).\n`)).toBe(true)
-    expect(w.last()).toContain('Usage: /adhd-reader')
+    expect(w.toasts.slice(count)).toEqual([
+      `"${args}" is not an option. Levels are 1 (light) to 5 (strongest).`,
+      'Usage: /adhd-reader [on | off | toggle | status | help | 1-5]',
+    ])
   }
 })
 
@@ -368,9 +368,9 @@ test('band keeps the band beneath it, toggles and steps the level', async ($, on
     expect(w.store.settings).toEqual({ enabled: false, level: 3 })
     await ui.press({ key: 'toggle' })
     await ui.press({ key: 'more' })
-    expect((await ui.find({ key: 'level' }))?.text).toBe('Strong 4/5')
+    expect((await ui.find({ key: 'level' }))?.text).toBe('Strong 4/5   ')
     await ui.press({ key: 'less' })
-    expect((await ui.find({ key: 'level' }))?.text).toBe('Medium 3/5')
+    expect((await ui.find({ key: 'level' }))?.text).toBe('Medium 3/5   ')
     expect(await ui.find({ text: 'other band' })).toBeDefined()
     await ui.unmount()
   }
@@ -385,7 +385,7 @@ test('band controls are plain, with no letter that would only work after ctrl+x 
       expect(button.props.plain).toBe(true)
       expect(button.props.hotkey).toBeUndefined()
     }
-    expect(await row(ui)).toBe('[x] ADHD Reader  - Medium 3/5 +  Easier reading')
+    expect(await row(ui)).toBe('[x] ADHD Reader  - Medium 3/5    +  Easier reading')
     await ui.unmount()
   }
 })
@@ -442,7 +442,7 @@ test('at 1 and 5 the missing step keeps its cell, so nothing shifts', async ($, 
     let ui = await band($, surface)
     expect(await ui.find({ key: 'less' })).toBeUndefined()
     expect(await ui.find({ key: 'more' })).toBeDefined()
-    expect(await row(ui)).toBe('[x] ADHD Reader    Light 1/5 +  Easier reading')
+    expect(await row(ui)).toBe('[x] ADHD Reader    Light 1/5     +  Easier reading')
     await ui.unmount()
     await run($, '5')
     ui = await band($, surface)
@@ -541,9 +541,9 @@ test('narrow widths drop the preview, the level name, the long name, then the le
     await ui.unmount()
   }
   expect(rows).toEqual({
-    75: '[x] ADHD Reader  - Medium 3/5 +  Easier reading',
-    40: '[x] ADHD Reader  - Medium 3/5 +',
-    35: '[x] ADHD Reader  - Medium 3/5 +',
+    75: '[x] ADHD Reader  - Medium 3/5    +  Easier reading',
+    40: '[x] ADHD Reader  - Medium 3/5    +',
+    35: '[x] ADHD Reader  - Medium 3/5    +',
     25: '[x] ADHD Reader  - 3/5 +',
     20: '[x] ADHD  - 3/5 +',
     15: '[x] ADHD Reader',
@@ -572,6 +572,64 @@ for (const lang of LANGS)
     }
   })
 
+for (const lang of LANGS)
+  test(`${lang}: + and the preview stay in the same cell at every level`, { options: { language: lang } }, async ($, on) => {
+    world(on)
+    await start($)
+    const { preview } = messages(lang)
+    const at = new Set<string>()
+    for (const level of [1, 2, 3, 4, 5]) {
+      await run($, String(level))
+      const ui = await band($, 'terminal', { bodyColumns: 120 })
+      const drawn = await row(ui)
+      await ui.unmount()
+      const before = (part: string) => cells(drawn.slice(0, drawn.lastIndexOf(part)))
+      at.add(`${level < 5 ? before(' +  ') : before('    ')} ${before(preview)}`)
+    }
+    expect([lang, at.size]).toEqual([lang, 1])
+  })
+
+// Toasts
+
+// A toast box wraps its text at 40 cells and shows three lines. Greedy word
+// wrap, a word wider than a line cut by cells: no kinder than the terminal.
+function wrap(text: string, width = 40) {
+  const lines: string[] = []
+  let line = ''
+  for (const word of text.split(' ')) {
+    if (line !== '' && cells(`${line} ${word}`) > width) {
+      lines.push(line)
+      line = word
+    } else line = line === '' ? word : `${line} ${word}`
+    while (cells(line) > width) {
+      let cut = 0
+      for (const char of line) {
+        if (cells(line.slice(0, cut + char.length)) > width) break
+        cut += char.length
+      }
+      lines.push(line.slice(0, cut))
+      line = line.slice(cut)
+    }
+  }
+  return [...lines, line]
+}
+
+test('wrap breaks at spaces and cuts wide text by cells', () => {
+  expect(wrap('aaa bbb ccc', 7)).toEqual(['aaa bbb', 'ccc'])
+  expect(wrap('強強強強', 5)).toEqual(['強強', '強強'])
+})
+
+for (const lang of LANGS)
+  test(`${lang}: every toast is one line that fits its box`, { options: { language: lang } }, async ($, on) => {
+    const w = world(on)
+    await start($)
+    for (const args of ['help', 'abcdefghijkl', 'off', '1', '2', '3', '4', '5', 'status']) await run($, args)
+    expect(w.toasts).toHaveLength(3 + 4 + 2 + 7)
+    for (const text of w.toasts) {
+      expect([text, text.includes('\n'), cells(text) <= 110, wrap(text).length <= 3]).toEqual([text, false, true, true])
+    }
+  })
+
 // Persistence
 
 test('settings survive a restart', async ($, on) => {
@@ -587,7 +645,7 @@ test('settings survive a restart', async ($, on) => {
   expect(w.last()).toBe('ADHD Reader on: Light+ (2/5)')
   for (const surface of SURFACES) {
     const ui = await band($, surface)
-    expect((await ui.find({ key: 'level' }))?.text).toBe('Light+ 2/5')
+    expect((await ui.find({ key: 'level' }))?.text).toBe('Light+ 2/5   ')
     await ui.unmount()
   }
 })
@@ -599,7 +657,7 @@ test('the saved choice comes back after /clear, /resume and /branch', async ($, 
   const ui = await band($, 'terminal')
   expect((await ui.find({ key: 'toggle' }))?.props.label).toBe('[ ] ADHD Reader')
   await ui.press({ key: 'toggle' })
-  expect((await ui.find({ key: 'level' }))?.text).toBe('Light 1/5')
+  expect((await ui.find({ key: 'level' }))?.text).toBe('Light 1/5    ')
   expect(store.settings).toEqual({ enabled: true, level: 1 })
   await ui.unmount()
 })
@@ -643,11 +701,11 @@ test('intro shows once, and only in an interactive session', async ($, on) => {
   await start($, false)
   expect(w.toasts).toHaveLength(0)
   await start($)
-  expect(w.toasts).toHaveLength(1)
-  expect(w.last()).toBe(MESSAGES.en.intro.replace('{cmd}', 'adhd-reader'))
+  const { intro, band, screen } = MESSAGES.en
+  expect(w.toasts).toEqual([intro.replace('{cmd}', 'adhd-reader'), band, screen])
   expect(store.introSeen).toBe(true)
   await start($)
-  expect(w.toasts).toHaveLength(1)
+  expect(w.toasts).toHaveLength(3)
 })
 
 test('intro waits for an app that draws it', async ($, on) => {
@@ -657,5 +715,5 @@ test('intro waits for an app that draws it', async ($, on) => {
   expect(w.toasts).toHaveLength(0)
   expect(store.introSeen).toBeUndefined()
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
-  expect(w.toasts).toHaveLength(1)
+  expect(w.toasts).toHaveLength(3)
 })
