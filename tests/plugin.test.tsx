@@ -1,10 +1,13 @@
 import { expect, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { MESSAGES, fromLocale, fromName } from '../hooks/i18n.ts'
+import { bionic } from '../hooks/bionic.ts'
+import { MESSAGES, cells, fromLocale, fromName, messages } from '../hooks/i18n.ts'
+import type { Lang } from '../hooks/i18n.ts'
 
 const PLUGIN = 'adhd-reader'
 const SURFACES = ['terminal', 'desktop'] as const
+const LANGS = Object.keys(MESSAGES) as Lang[]
 const REPLY =
   'Reading **bold** `inline code` [link](https://docs.localhost/path) https://docs.localhost/raw\n\n```js\nconst words = 1\n```'
 const BAND = {
@@ -18,11 +21,14 @@ const BAND = {
 
 type Setup = {
   store?: Record<string, unknown>
+  // Claude Code's own /config rows, served to any plugin that asks for them.
+  settings?: Record<string, unknown>
 }
 
 // The engine beneath the plugin: store and toasts in memory, plus another band drawn under ours.
-function world(on: On, { store = {} }: Setup = {}) {
+function world(on: On, { store = {}, settings = {} }: Setup = {}) {
   const toasts: string[] = []
+  const asked = { settings: 0 }
   on('store.get', ($, e) => ({ value: store[e.key] }))
   on('store.set', ($, e) => {
     store[e.key] = e.value
@@ -32,6 +38,12 @@ function world(on: On, { store = {} }: Setup = {}) {
     toasts.push(e.text)
     return { value: undefined }
   })
+  on('config.list', () => {
+    asked.settings++
+    const provider = { plugin: 'engine', tier: 'core' as const }
+    const rows = Object.entries(settings).map(([name, value]) => ({ key: name, label: name, kind: 'text', value, provider, isLocked: false }))
+    return { value: rows as never }
+  })
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('classic.SessionStart', () => ({}))
   on('command.register', ($, e) => ({ value: { command: e.name } }))
@@ -39,7 +51,8 @@ function world(on: On, { store = {} }: Setup = {}) {
   on('config.describe', ($, e) => ({ label: e.label, description: e.description, isHidden: e.isHidden }))
   on('ui.render', { component: 'AssistantMessage' }, ($, e) => ({ type: 'Text', props: {}, children: [e.props.text] }))
   on('ui.render', { component: 'AbovePrompt' }, () => ({ type: 'Text', props: {}, children: ['other band'] }))
-  return { store, toasts, last: () => toasts[toasts.length - 1] }
+  on('ui.render', { component: 'SessionMode' }, ($, e) => ({ type: 'Text', props: {}, children: [e.props.modes.join(' & ')] }))
+  return { store, toasts, asked, last: () => toasts[toasts.length - 1] }
 }
 
 const start = ($: any, isInteractive = true) => $.session.start({ cwd: '/', surface: 'terminal', isInteractive })
@@ -61,6 +74,28 @@ async function drawReply($: any, surface: (typeof SURFACES)[number], text = REPL
 const band = ($: any, surface: (typeof SURFACES)[number], props: Partial<typeof BAND> = {}) =>
   $.ui.mount({ plugin: PLUGIN, surface, component: 'AbovePrompt', props: { ...BAND, ...props } })
 
+type Drawn = { type: string; props: Record<string, any>; children?: (Drawn | string)[] }
+
+// The tree as the terminal lays it out: plain Buttons bare (`h: label` with a
+// hotkey), others in `[ label ]`, gaps as spaces; bold runs wrapped in `mark`.
+function paint(node: Drawn | string, mark = ''): string {
+  if (typeof node === 'string') return node
+  const inner = (node.children ?? []).map(child => paint(child, mark))
+  const props = node.props ?? {}
+  if (node.type === 'Button') {
+    const label = props.label ?? inner.join('')
+    if (!props.plain) return `[ ${label} ]`
+    return props.hotkey ? `${props.hotkey}: ${label}` : label
+  }
+  if (node.type === 'Box') return inner.join(props.flexDirection === 'column' ? '\n' : ' '.repeat(props.columnGap ?? 0))
+  return props.bold ? `${mark}${inner.join('')}${mark}` : inner.join('')
+}
+
+// Our row of the band, the first line; the band beneath is the next.
+async function row(ui: any, mark = '') {
+  return paint(await ui.drawn(), mark).split('\n')[0]
+}
+
 const describe = ($: any, command: string) =>
   $.command.describe({
     command,
@@ -78,37 +113,38 @@ test('English by default: band, toasts and command description', async ($, on) =
   expect(w.toasts[0]).toContain('ADHD Reader bolds')
   for (const surface of SURFACES) {
     const ui = await band($, surface)
-    expect((await ui.find({ key: 'toggle' }))?.text).toBe('ADHD Reader: On')
+    expect((await ui.find({ key: 'toggle' }))?.text).toBe('[x] ADHD Reader')
     expect((await ui.find({ key: 'level' }))?.text).toBe('Medium 3/5')
     await ui.unmount()
   }
   await run($, 'off')
-  expect(w.last()).toBe('ADHD Reader off')
+  expect(w.last()).toBe('ADHD Reader off. /adhd-reader turns it back on.')
   expect((await describe($, PLUGIN)).description).toBe(MESSAGES.en.description)
+  expect((await describe($, PLUGIN)).argumentHint).toBe('[on | off | 1-5 | help]')
   expect((await describe($, 'okuma')).isHidden).toBe(true)
 })
 
-test('Turkish chosen in /config', { options: { language: 'Türkçe' } }, async ($, on) => {
+test('Turkish chosen in /config, whatever Claude Code itself is set to', { options: { language: 'Türkçe' } }, async ($, on) => {
   const w = world(on, { settings: { language: 'german' } })
   await start($)
-  expect(w.toasts[0]).toContain('/okuma')
+  expect(w.toasts[0]).toContain('/okuma yardım')
   for (const surface of SURFACES) {
     const ui = await band($, surface)
-    expect((await ui.find({ key: 'toggle' }))?.text).toBe('ADHD Reader: Açık')
-    expect((await ui.find({ key: 'less' }))?.text).toBe('Azalt')
+    expect((await ui.find({ key: 'toggle' }))?.text).toBe('[x] ADHD Reader')
     expect((await ui.find({ key: 'level' }))?.text).toBe('Orta 3/5')
     await ui.unmount()
   }
   await run($, 'kapat', 'okuma')
-  expect(w.last()).toBe('ADHD Reader kapalı')
+  expect(w.last()).toBe('ADHD Reader kapalı. /okuma yeniden açar.')
   await run($, '4', 'okuma')
-  expect(w.last()).toBeDefined()
-  await run($, 'aç', 'okuma')
   expect(w.last()).toBe('ADHD Reader açık: Güçlü (4/5)')
   await run($, 'xyz', 'okuma')
-  expect(w.last()).toBe('Kullanım: /okuma [aç | kapat | değiştir | durum | 1-5]')
+  expect(w.last()).toBe(
+    '"xyz" geçerli bir seçenek değil. Seviyeler 1 (hafif) ile 5 (en güçlü) arası.\nKullanım: /okuma [aç | kapat | değiştir | durum | yardım | 1-5]',
+  )
   expect((await describe($, 'okuma')).isHidden).toBe(false)
-  expect((await describe($, 'okuma')).argumentHint).toBe('[aç | kapat | 1-5]')
+  expect((await describe($, 'okuma')).argumentHint).toBe('[aç | kapat | 1-5 | yardım]')
+  expect(w.asked.settings).toBe(0)
 })
 
 test('/config rows are labeled in the chosen language', { options: { language: 'Deutsch' } }, async ($, on) => {
@@ -123,18 +159,19 @@ test('/config rows are labeled in the chosen language', { options: { language: '
 
 for (const language of ['Auto', '', 'Klingon'])
   test(`language option ${JSON.stringify(language)} is English`, { options: { language } }, async ($, on) => {
-    world(on)
+    const w = world(on, { settings: { language: 'japanese' } })
     await start($)
     const ui = await band($, 'terminal')
-    expect((await ui.find({ key: 'toggle' }))?.text).toBe('ADHD Reader: On')
+    expect((await ui.find({ key: 'level' }))?.text).toBe('Medium 3/5')
     await ui.unmount()
+    expect(w.asked.settings).toBe(0)
   })
 
 test('free text typed in /config is understood', { options: { language: 'portuguese' } }, async ($, on) => {
   world(on)
   await start($)
   const ui = await band($, 'terminal')
-  expect((await ui.find({ key: 'toggle' }))?.text).toBe('ADHD Reader: Ligado')
+  expect((await ui.find({ key: 'level' }))?.text).toBe('Médio 3/5')
   await ui.unmount()
 })
 
@@ -176,11 +213,10 @@ test('names and codes in English and natively, any case or accent', () => {
 })
 
 test('all nine tables: same keys, no empty strings, placeholders kept, no long dash', () => {
-  const langs = Object.keys(MESSAGES)
-  expect(langs).toEqual(['en', 'tr', 'es', 'pt-BR', 'de', 'fr', 'ru', 'ja', 'zh-Hans'])
+  expect(LANGS).toEqual(['en', 'tr', 'es', 'pt-BR', 'de', 'fr', 'ru', 'ja', 'zh-Hans'])
   const keys = Object.keys(MESSAGES.en).sort()
-  for (const lang of langs) {
-    const table = MESSAGES[lang as keyof typeof MESSAGES] as Record<string, string>
+  for (const lang of LANGS) {
+    const table = MESSAGES[lang] as Record<string, string>
     expect(Object.keys(table).sort()).toEqual(keys)
     for (const key of keys) {
       const text = table[key]
@@ -191,6 +227,37 @@ test('all nine tables: same keys, no empty strings, placeholders kept, no long d
       expect(holes(text)).toEqual(holes((MESSAGES.en as Record<string, string>)[key]))
     }
   }
+})
+
+test('every language teaches the band path and lists help', () => {
+  const helpWord: Record<Lang, string> = {
+    en: 'help',
+    tr: 'yardım',
+    es: 'ayuda',
+    'pt-BR': 'ajuda',
+    de: 'hilfe',
+    fr: 'aide',
+    ru: 'помощь',
+    ja: 'ヘルプ',
+    'zh-Hans': '帮助',
+  }
+  for (const lang of LANGS) {
+    const t = messages(lang)
+    for (const text of [t.intro, t.help]) {
+      expect([lang, text.includes('ctrl+x') && text.includes('Tab')]).toEqual([lang, true])
+    }
+    expect([lang, t.intro.includes(`/{cmd} ${helpWord[lang]}`)]).toEqual([lang, true])
+    expect([lang, t.usage.includes(helpWord[lang]) && t.argumentHint.includes(helpWord[lang])]).toEqual([lang, true])
+    expect([lang, t.invalid.includes('1') && t.invalid.includes('5')]).toEqual([lang, true])
+  }
+})
+
+test('cell widths: East Asian wide characters take two', () => {
+  expect(cells('Medium 3/5')).toBe(10)
+  expect(cells('最強 5/5')).toBe(8)
+  expect(cells('轻+ 2/5')).toBe(7)
+  expect(cells('Désactivé')).toBe(9)
+  expect(cells('Désactivé'.normalize('NFD'))).toBe(9)
 })
 
 // Replies
@@ -257,10 +324,11 @@ test('arguments in any language and case; nothing reaches the transcript', async
   await run($, 'status')
   expect(w.last()).toBe('ADHD Reader on: Strong (4/5)')
   await run($, 'help')
-  expect(w.last()).toBe('Usage: /adhd-reader [on | off | toggle | status | 1-5]')
+  expect(w.last()).toBe(`${MESSAGES.en.help}\nUsage: /adhd-reader [on | off | toggle | status | help | 1-5]`)
+  expect(w.last()).toContain('ctrl+x then Tab')
 })
 
-test('invalid arguments show usage and change nothing', async ($, on) => {
+test('invalid arguments say what was wrong and change nothing', async ($, on) => {
   const w = world(on)
   await start($)
   await run($, '2')
@@ -271,8 +339,18 @@ test('invalid arguments show usage and change nothing', async ($, on) => {
     expect(result.text).toBeUndefined()
     expect(w.store.settings).toEqual(before)
     expect(w.toasts.length).toBe(count + 1)
+    expect(w.last().startsWith(`"${args}" is not an option. Levels are 1 (light) to 5 (strongest).\n`)).toBe(true)
     expect(w.last()).toContain('Usage: /adhd-reader')
   }
+})
+
+test('two commands in the same tick both count', async ($, on) => {
+  const w = world(on)
+  await start($)
+  await Promise.all([run($, 'toggle'), run($, 'toggle')])
+  expect(w.store.settings).toEqual({ enabled: true, level: 3 })
+  await Promise.all([run($, 'off'), run($, 'toggle'), run($, 'toggle')])
+  expect(w.store.settings).toEqual({ enabled: false, level: 3 })
 })
 
 // Band
@@ -283,11 +361,10 @@ test('band keeps the band beneath it, toggles and steps the level', async ($, on
   for (const surface of SURFACES) {
     const ui = await band($, surface)
     expect(await ui.find({ text: 'other band' })).toBeDefined()
-    expect((await ui.find({ key: 'toggle' }))?.props.hotkey).toBe('t')
-    expect((await ui.find({ key: 'less' }))?.props.hotkey).toBe('l')
-    expect((await ui.find({ key: 'more' }))?.props.hotkey).toBe('m')
+    expect((await ui.find({ key: 'less' }))?.text).toBe('-')
+    expect((await ui.find({ key: 'more' }))?.text).toBe('+')
     await ui.press({ key: 'toggle' })
-    expect((await ui.find({ key: 'toggle' }))?.text).toBe('ADHD Reader: Off')
+    expect((await ui.find({ key: 'toggle' }))?.text).toBe('[ ] ADHD Reader')
     expect(w.store.settings).toEqual({ enabled: false, level: 3 })
     await ui.press({ key: 'toggle' })
     await ui.press({ key: 'more' })
@@ -299,7 +376,65 @@ test('band keeps the band beneath it, toggles and steps the level', async ($, on
   }
 })
 
-test('band hides Less at 1 and More at 5; preview follows the level', async ($, on) => {
+test('band controls are plain, with no letter that would only work after ctrl+x Tab', async ($, on) => {
+  world(on)
+  await start($)
+  for (const surface of SURFACES) {
+    const ui = await band($, surface)
+    for (const button of await ui.findAll({ type: 'Button' })) {
+      expect(button.props.plain).toBe(true)
+      expect(button.props.hotkey).toBeUndefined()
+    }
+    expect(await row(ui)).toBe('[x] ADHD Reader  - Medium 3/5 +  Easier reading')
+    await ui.unmount()
+  }
+})
+
+test('two band presses in the same tick both count', async ($, on) => {
+  const w = world(on)
+  await start($)
+  for (const surface of SURFACES) {
+    const ui = await band($, surface)
+    await Promise.all([ui.press({ key: 'toggle' }), ui.press({ key: 'toggle' })])
+    expect(w.store.settings).toEqual({ enabled: true, level: 3 })
+    await Promise.all([ui.press({ key: 'more' }), ui.press({ key: 'more' })])
+    expect(w.store.settings).toEqual({ enabled: true, level: 5 })
+    await Promise.all([ui.press({ key: 'less' }), ui.press({ key: 'less' })])
+    expect(w.store.settings).toEqual({ enabled: true, level: 3 })
+    await ui.unmount()
+  }
+})
+
+test('a level change from the band turns the reader on', async ($, on) => {
+  const store: Record<string, unknown> = {}
+  world(on, { store })
+  await start($)
+  for (const surface of SURFACES) {
+    const ui = await band($, surface)
+    // Another session switched it off after this band was drawn.
+    store.settings = { enabled: false, level: 2 }
+    await ui.press({ key: 'more' })
+    expect(store.settings).toEqual({ enabled: true, level: 3 })
+    store.settings = { enabled: false, level: 4 }
+    await ui.press({ key: 'less' })
+    expect(store.settings).toEqual({ enabled: true, level: 3 })
+    await ui.unmount()
+  }
+})
+
+test('off collapses the band to the toggle alone', async ($, on) => {
+  world(on)
+  await start($)
+  await run($, 'off')
+  for (const surface of SURFACES) {
+    const ui = await band($, surface)
+    expect(await row(ui)).toBe('[ ] ADHD Reader')
+    for (const key of ['less', 'level', 'more', 'preview']) expect(await ui.find({ key })).toBeUndefined()
+    await ui.unmount()
+  }
+})
+
+test('at 1 and 5 the missing step keeps its cell, so nothing shifts', async ($, on) => {
   world(on)
   await start($)
   for (const surface of SURFACES) {
@@ -307,16 +442,44 @@ test('band hides Less at 1 and More at 5; preview follows the level', async ($, 
     let ui = await band($, surface)
     expect(await ui.find({ key: 'less' })).toBeUndefined()
     expect(await ui.find({ key: 'more' })).toBeDefined()
-    const light = (await ui.find({ key: 'preview' }))?.text
-    expect(light).toBe('Reading')
+    expect(await row(ui)).toBe('[x] ADHD Reader    Light 1/5 +  Easier reading')
     await ui.unmount()
     await run($, '5')
     ui = await band($, surface)
     expect(await ui.find({ key: 'more' })).toBeUndefined()
     expect(await ui.find({ key: 'less' })).toBeDefined()
-    expect((await ui.find({ key: 'level' }))?.text).toBe('Strongest 5/5')
-    expect(await ui.find({ key: 'preview' })).toBeDefined()
+    expect(await row(ui)).toBe('[x] ADHD Reader  - Strongest 5/5    Easier reading')
     await ui.unmount()
+  }
+})
+
+test('preview: dim, its bold heads only weighted, different at every level', async ($, on) => {
+  world(on)
+  await start($)
+  const seen = new Set<string>()
+  for (const level of [1, 2, 3, 4, 5]) {
+    await run($, String(level))
+    const ui = await band($, 'terminal')
+    const preview = ((await ui.drawn()) as any).children[0].children.at(-1)
+    expect(preview.props.key).toBe('preview')
+    expect(preview.children[0].props.dimColor).toBe(true)
+    seen.add(paint(preview, '*'))
+    await ui.unmount()
+  }
+  expect([...seen]).toEqual([
+    '*Ea*sier *rea*ding',
+    '*Eas*ier *rea*ding',
+    '*Eas*ier *read*ing',
+    '*Easi*er *readi*ng',
+    '*Easie*r *readi*ng',
+  ])
+})
+
+test('every language has a preview that looks different at all five levels', () => {
+  for (const lang of LANGS) {
+    const { preview } = messages(lang)
+    expect([lang, preview.split(' ').length]).toEqual([lang, 2])
+    expect([lang, new Set([1, 2, 3, 4, 5].map(level => bionic(preview, level))).size]).toEqual([lang, 5])
   }
 })
 
@@ -342,22 +505,72 @@ test('showBand off draws only the band beneath', { options: { showBand: false } 
   }
 })
 
-test('band shortens on narrow widths', async ($, on) => {
+const footer = ($: any, surface: (typeof SURFACES)[number]) =>
+  $.ui.mount({ plugin: PLUGIN, surface, component: 'SessionMode', props: { modes: ['focus'] } })
+
+test('showBand off: the footer shows the level while the reader is on', { options: { showBand: false } }, async ($, on) => {
   world(on)
   await start($)
   for (const surface of SURFACES) {
-    let ui = await band($, surface, { bodyColumns: 48 })
-    expect((await ui.find({ key: 'level' }))?.text).toBe('3/5')
-    expect(await ui.find({ key: 'less' })).toBeDefined()
-    expect(await ui.find({ key: 'preview' })).toBeUndefined()
+    await run($, '4')
+    let ui = await footer($, surface)
+    expect((await ui.find({ type: 'Text' }))?.text).toBe('focus & adhd 4/5')
     await ui.unmount()
-    ui = await band($, surface, { bodyColumns: 20, maxRows: 1 })
-    expect(await ui.find({ key: 'toggle' })).toBeDefined()
-    expect(await ui.find({ key: 'less' })).toBeUndefined()
-    expect(await ui.find({ key: 'more' })).toBeUndefined()
+    await run($, 'off')
+    ui = await footer($, surface)
+    expect((await ui.find({ type: 'Text' }))?.text).toBe('focus')
     await ui.unmount()
   }
 })
+
+test('with the band shown, the footer is left alone', async ($, on) => {
+  world(on)
+  await start($)
+  const ui = await footer($, 'terminal')
+  expect((await ui.find({ type: 'Text' }))?.text).toBe('focus')
+  await ui.unmount()
+})
+
+test('narrow widths drop the preview, the level name, the long name, then the level', async ($, on) => {
+  world(on)
+  await start($)
+  const rows: Record<number, string> = {}
+  for (const bodyColumns of [75, 40, 35, 25, 20, 15, 8]) {
+    const ui = await band($, 'terminal', { bodyColumns })
+    rows[bodyColumns] = await row(ui)
+    await ui.unmount()
+  }
+  expect(rows).toEqual({
+    75: '[x] ADHD Reader  - Medium 3/5 +  Easier reading',
+    40: '[x] ADHD Reader  - Medium 3/5 +',
+    35: '[x] ADHD Reader  - Medium 3/5 +',
+    25: '[x] ADHD Reader  - 3/5 +',
+    20: '[x] ADHD  - 3/5 +',
+    15: '[x] ADHD Reader',
+    8: '[x] ADHD',
+  })
+})
+
+for (const lang of LANGS)
+  test(`${lang}: the band fits every width from 8 to 120 cells, on and off`, { options: { language: lang } }, async ($, on) => {
+    world(on)
+    await start($)
+    for (const state of ['off', '1', '2', '3', '4', '5']) {
+      await run($, state)
+      let previous = 0
+      for (let bodyColumns = 8; bodyColumns <= 120; bodyColumns++) {
+        const ui = await band($, 'terminal', { bodyColumns })
+        const width = cells(await row(ui))
+        await ui.unmount()
+        expect([state, bodyColumns, width <= bodyColumns]).toEqual([state, bodyColumns, true])
+        expect(width).toBeGreaterThanOrEqual(previous)
+        previous = width
+      }
+      const ui = await band($, 'terminal', { bodyColumns: 120 })
+      expect(await ui.find({ key: state === 'off' ? 'toggle' : 'preview' })).toBeDefined()
+      await ui.unmount()
+    }
+  })
 
 // Persistence
 
@@ -384,10 +597,10 @@ test('the saved choice comes back after /clear, /resume and /branch', async ($, 
   world(on, { store })
   await $.classic.SessionStart({ source: 'clear' })
   const ui = await band($, 'terminal')
-  expect((await ui.find({ key: 'toggle' }))?.props.label).toBe('ADHD Reader: Off')
-  expect((await ui.find({ key: 'level' }))?.text).toMatch(/1\/5$/)
-  await ui.press({ key: 'more' })
-  expect(store.settings).toEqual({ enabled: false, level: 2 })
+  expect((await ui.find({ key: 'toggle' }))?.props.label).toBe('[ ] ADHD Reader')
+  await ui.press({ key: 'toggle' })
+  expect((await ui.find({ key: 'level' }))?.text).toBe('Light 1/5')
+  expect(store.settings).toEqual({ enabled: true, level: 1 })
   await ui.unmount()
 })
 
@@ -404,10 +617,11 @@ test('a change builds on what another session saved', async ($, on) => {
 test('corrupt stored settings fall back field by field', async ($, on) => {
   const store: Record<string, unknown> = {}
   const w = world(on, { store })
+  const off = 'ADHD Reader off. /adhd-reader turns it back on.'
   const cases: [unknown, string][] = [
     [{ enabled: true, level: 99 }, 'ADHD Reader on: Medium (3/5)'],
     [{ enabled: 'no', level: 2 }, 'ADHD Reader on: Light+ (2/5)'],
-    [{ enabled: false, level: 2.5 }, 'ADHD Reader off'],
+    [{ enabled: false, level: 2.5 }, off],
     [{ enabled: true, level: '4' }, 'ADHD Reader on: Medium (3/5)'],
     ['junk', 'ADHD Reader on: Medium (3/5)'],
     [null, 'ADHD Reader on: Medium (3/5)'],
@@ -430,6 +644,7 @@ test('intro shows once, and only in an interactive session', async ($, on) => {
   expect(w.toasts).toHaveLength(0)
   await start($)
   expect(w.toasts).toHaveLength(1)
+  expect(w.last()).toBe(MESSAGES.en.intro.replace('{cmd}', 'adhd-reader'))
   expect(store.introSeen).toBe(true)
   await start($)
   expect(w.toasts).toHaveLength(1)
