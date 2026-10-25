@@ -188,7 +188,7 @@ export const register: Register = (on, options) => {
           )}
           {sample === undefined ? null : (
             <Box key="preview">
-              <Text dimColor>{bionic(sample, value.level).split('**').map((part, i) => (i % 2 ? <Text bold>{part}</Text> : part))}</Text>
+              <Text dimColor>{bionic(sample, value.level).split('**').map((part, i) => (i % 2 ? <Text key={i} bold>{part}</Text> : part))}</Text>
             </Box>
           )}
         </Box>

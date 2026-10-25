@@ -73,8 +73,12 @@ function charBefore(s: string, i: number): string {
   return low >= 0xdc00 && low <= 0xdfff && i >= 2 ? String.fromCodePoint(s.codePointAt(i - 2)!) : s[i - 1]!
 }
 
+// Pairs surrogates by hand: V8's Maglev has read past the end of a sliced string in codePointAt.
 function charFrom(s: string, i: number): string {
-  return i < s.length ? String.fromCodePoint(s.codePointAt(i)!) : ''
+  if (i >= s.length) return ''
+  const c = s.charCodeAt(i)
+  const d = i + 1 < s.length ? s.charCodeAt(i + 1) : 0
+  return c >= 0xd800 && c <= 0xdbff && d >= 0xdc00 && d <= 0xdfff ? s.slice(i, i + 2) : s[i]!
 }
 
 // --------------------------------------------------------------------- blocks

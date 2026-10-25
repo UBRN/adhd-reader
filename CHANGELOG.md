@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.1.0
+
+- A quieter band: `[x] ADHD Reader  - Medium 3/5 +  Easier reading`. While the reader is off it shows only `[ ] ADHD Reader`.
+- The band picks the fullest layout that fits the terminal, in every language, so it no longer runs past the edge on narrow windows.
+- The band's letter keys (t, l, m) are gone. Press ctrl+x, then Tab, to reach the band; Tab moves, Enter presses, Esc goes back. The introduction and `/adhd-reader help` now say so.
+- Any level change, from the band or the command, switches the reader on.
+- Two quick presses in a row both count; before, one could be lost.
+- The preview shows two words that look different at every level.
+- With `showBand` off, the prompt footer shows `adhd 3/5` while the reader is on.
+- An argument it does not know now says what was wrong and lists the valid choices.
+- File patterns such as `src/*.ts` and `__init__.py` are no longer bolded inside.
+- Long replies cost far less while they stream (about 5x less work for a 50,000 character reply), and finished replies stay cached.
+- A reply cut in the middle of an emoji while streaming no longer bolds the word before it.
+- Smaller code: four unused branches removed.
+
 ## 1.0.6
 
 - Your on/off and level choice is kept after `/clear`, `/resume` and `/branch`. Before, those commands switched the reader back on at level 3.
