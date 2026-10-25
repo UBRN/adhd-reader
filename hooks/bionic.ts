@@ -36,7 +36,6 @@ const NEWLINE = 10
 const SPACE = 32
 const BANG = 33
 const DOLLAR = 36
-const AMPERSAND = 38
 const OPEN_PAREN = 40
 const CLOSE_PAREN = 41
 const STAR = 42
@@ -465,9 +464,9 @@ function normalizeLabel(label: string): string {
 // --------------------------------------------------------------------- inline
 
 const TEXT = 1 // kept as written, still read as part of its token
-const OPAQUE = 2 // kept as written and hidden from the token tests
+const MARKER = 2 // kept as written and left out of the token tests
+const OPAQUE = 3 // kept as written and hidden from the token tests
 
-const ENTITY = /&(?:#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});/y
 const BARE_URL = /(?:[a-z][a-z0-9+.-]{1,15}:\/\/(?=[\p{L}\p{N}_-])|file:\/\/|mailto:|www\.(?=[\p{L}\p{N}_-]))[^\s<>`]+/iuy
 const URL_TRAILER = `.,:;!?'"*_~]`
 const TAG_OR_AUTOLINK = new RegExp(
@@ -506,13 +505,12 @@ class InlineScan {
   private readonly open: boolean
   private readonly labels: ReadonlySet<string>
   private readonly runs: DelimiterRun[] = []
-  // Difference arrays of the TEXT and OPAQUE ranges.
+  // Difference arrays of the TEXT, MARKER and OPAQUE ranges.
   private readonly text: Int32Array
+  private readonly marker: Int32Array
   private readonly opaque: Int32Array
   private readonly found = new Map<string, [from: number, at: number]>()
   private bracketPairs: Int32Array | null = null
-  private tickRuns: Map<number, number[]> | null = null
-  private readonly tickCursor = new Map<number, number>()
   private parens: { match: Int32Array; lastClose: Int32Array } | null = null
   private readonly links = new Map<number, { end: number; reach: number }>()
 
@@ -521,6 +519,7 @@ class InlineScan {
     this.open = open
     this.labels = labels
     this.text = new Int32Array(s.length + 1)
+    this.marker = new Int32Array(s.length + 1)
     this.opaque = new Int32Array(s.length + 1)
   }
 
@@ -536,7 +535,6 @@ class InlineScan {
         case BANG: i = this.image(i); break
         case OPEN_BRACKET: i = this.bracket(i); break
         case CLOSE_BRACKET: i = this.linkTail(i); break
-        case AMPERSAND: i = this.entity(i); break
         case STAR:
         case UNDERSCORE: i = this.delimiterRun(i); break
         default: i = this.bareUrl(i)
@@ -549,7 +547,12 @@ class InlineScan {
     let drift = -1
     for (const m of s.matchAll(ASTRAL_ESCAPE)) drift = m.index + m[0].length
     if (drift >= 0) this.protect(0, drift, OPAQUE)
-    const stray = matchEmphasis(this.runs, (start, end) => this.protect(start, end, OPAQUE))
+    // Paired delimiters vanish; the text between them still reads as part of its token.
+    const stray = matchEmphasis(this.runs, (start, end, used) => {
+      this.protect(start, end, TEXT)
+      this.protect(start, start + used, MARKER)
+      this.protect(end - used, end, MARKER)
+    })
     // A delimiter that matches nothing leaves the reading of the scope uncertain,
     // and readers differ on it. While streaming it opens what is still to come,
     // so keep the rest as it is; otherwise keep the whole scope.
@@ -559,17 +562,19 @@ class InlineScan {
   flags(): Uint8Array {
     const flags = new Uint8Array(this.s.length)
     let text = 0
+    let marker = 0
     let opaque = 0
     for (let k = 0; k < flags.length; k++) {
       text += this.text[k]!
+      marker += this.marker[k]!
       opaque += this.opaque[k]!
-      flags[k] = opaque > 0 ? OPAQUE : text > 0 ? TEXT : 0
+      flags[k] = opaque > 0 ? OPAQUE : marker > 0 ? MARKER : text > 0 ? TEXT : 0
     }
     return flags
   }
 
   private protect(start: number, end: number, level: number): void {
-    const marks = level === OPAQUE ? this.opaque : this.text
+    const marks = level === OPAQUE ? this.opaque : level === MARKER ? this.marker : this.text
     marks[start]!++
     marks[Math.min(end, this.s.length)]!--
   }
@@ -605,19 +610,14 @@ class InlineScan {
   private backslash(i: number): number {
     const { s } = this
     const next = s.charCodeAt(i + 1)
-    if (isAsciiLetter(next)) {
-      // a LaTeX command
-      let end = i + 2
-      while (isAsciiLetter(s.charCodeAt(end))) end++
-      return this.keep(i, end, TEXT)
-    }
     if (next === OPEN_PAREN || next === OPEN_BRACKET) {
       // \( math \) and \[ math \]
       const close = this.find(next === OPEN_PAREN ? '\\)' : '\\]', i + 2)
       if (close >= 0 && mathFits(s, i, close)) return this.keep(i, close + 2, TEXT)
       if (close < 0 && this.open) return this.keepRest(i)
     }
-    return isAsciiPunctuation(next) ? this.keep(i, i + 2, TEXT) : i + 1
+    // A token with a backslash is technical anyway; only an escaped delimiter matters.
+    return isAsciiPunctuation(next) ? i + 2 : i + 1
   }
 
   private codeSpan(i: number): number {
@@ -630,26 +630,18 @@ class InlineScan {
 
   /** Start of the first run of exactly `length` backticks at or after `from`, or -1. */
   private closingTicks(length: number, from: number): number {
-    this.tickRuns ??= backtickRuns(this.s)
-    const starts = this.tickRuns.get(length)
-    if (!starts) return -1
-    let k = this.tickCursor.get(length) ?? 0
-    while (k < starts.length && starts[k]! < from) k++
-    this.tickCursor.set(length, k)
-    return k < starts.length ? starts[k]! : -1
+    const { s } = this
+    const ticks = '`'.repeat(length)
+    for (let at = s.indexOf(ticks, from); at >= 0; at = s.indexOf(ticks, at + 1)) {
+      if (s.charCodeAt(at - 1) !== BACKTICK && s.charCodeAt(at + length) !== BACKTICK) return at
+    }
+    return -1
   }
 
   private angle(i: number): number {
-    const { s } = this
     const end = this.htmlEnd(i)
     if (end > 0) return this.keep(i, end)
     if (end === CUT && this.open) return this.keepRest(i)
-    // marked keeps emphasis away from a `<` that is not before a space, up to the next `>`.
-    if (s.charCodeAt(i + 1) !== SPACE) {
-      const less = this.find('<', i + 1)
-      const greater = this.find('>', i + 1)
-      if (greater >= 0 && (less < 0 || greater < less)) this.protect(i, greater + 1, OPAQUE)
-    }
     return i + 1
   }
 
@@ -754,11 +746,6 @@ class InlineScan {
     return link
   }
 
-  private entity(i: number): number {
-    ENTITY.lastIndex = i
-    return ENTITY.test(this.s) ? this.keep(i, ENTITY.lastIndex, TEXT) : i + 1
-  }
-
   private delimiterRun(i: number): number {
     const { s } = this
     let end = i + 1
@@ -852,20 +839,6 @@ function bracketPairs(s: string): Int32Array {
   return pairs
 }
 
-/** Starts of the backtick runs of each length. */
-function backtickRuns(s: string): Map<number, number[]> {
-  const runs = new Map<number, number[]>()
-  for (let i = s.indexOf('`'); i >= 0; i = s.indexOf('`', i)) {
-    let end = i + 1
-    while (s.charCodeAt(end) === BACKTICK) end++
-    const starts = runs.get(end - i)
-    if (starts) starts.push(i)
-    else runs.set(end - i, [i])
-    i = end
-  }
-  return runs
-}
-
 /** For each `(`, its balancing `)`; for each position, the last `)` before the next space. */
 function parenIndex(s: string): { match: Int32Array; lastClose: Int32Array } {
   const match = new Int32Array(s.length).fill(-1)
@@ -944,14 +917,17 @@ function titleEnd(s: string, start: number): number {
 
 /**
  * Pairs the delimiter runs into emphasis as CommonMark does and reports each
- * matched span. Returns where the first delimiter that matched nothing sits, or -1.
+ * matched span with the delimiters used at each end. Returns where the first
+ * delimiter that matched nothing sits, or -1.
  */
-function matchEmphasis(runs: DelimiterRun[], span: (start: number, end: number) => void): number {
+function matchEmphasis(runs: DelimiterRun[], span: (start: number, end: number, used: number) => void): number {
   const openers: DelimiterRun[] = []
   // Per kind of closer, the first run that may still open for it.
   const floor = new Int32Array(12)
   let stray = Infinity
   for (const run of runs) {
+    // marked lets a `**` after a closing `_` take that `_` past a lone `**` before it.
+    if (run.star && run.size >= 2 && !run.canOpen && !run.canClose) stray = Math.min(stray, run.start)
     if (run.canClose) {
       const kind = (run.star ? 0 : 6) + (run.canOpen ? 3 : 0) + (run.size % 3)
       while (run.length > 0) {
@@ -964,7 +940,7 @@ function matchEmphasis(runs: DelimiterRun[], span: (start: number, end: number) 
         const opener = openers[k]!
         const used = opener.length >= 2 && run.length >= 2 ? 2 : 1
         opener.length -= used
-        span(opener.start + opener.length, run.start + used)
+        span(opener.start + opener.length, run.start + used, used)
         run.start += used
         run.length -= used
         openers.length = opener.length > 0 ? k + 1 : k
@@ -1002,7 +978,7 @@ const UNSPACED_SCRIPT =
 function boldPoints(s: string, flags: Uint8Array, level: number): number[] {
   const points: number[] = []
   for (const token of hideOpaque(s, flags).matchAll(TOKEN)) {
-    if (TECHNICAL.test(token[0])) continue
+    if (TECHNICAL.test(token[0].replaceAll('\u0002', ''))) continue
     for (const word of token[0].matchAll(WORD)) {
       const start = token.index! + word.index!
       const end = start + word[0].length
@@ -1014,15 +990,18 @@ function boldPoints(s: string, flags: Uint8Array, level: number): number[] {
   return points
 }
 
-/** `s` with each OPAQUE character replaced by U+0001, so token tests do not see it. */
+/** `s` with each OPAQUE character replaced by U+0001 and each MARKER by U+0002, so token tests do not see them. */
 function hideOpaque(s: string, flags: Uint8Array): string {
   let view = ''
   let from = 0
-  for (let k = flags.indexOf(OPAQUE); k >= 0; k = flags.indexOf(OPAQUE, from)) {
+  for (let k = 0; k < flags.length; k++) {
+    const flag = flags[k]!
+    if (flag < MARKER) continue
     let end = k + 1
-    while (flags[end] === OPAQUE) end++
-    view += s.slice(from, k) + '\u0001'.repeat(end - k)
+    while (flags[end] === flag) end++
+    view += s.slice(from, k) + (flag === OPAQUE ? '\u0001' : '\u0002').repeat(end - k)
     from = end
+    k = end - 1
   }
   return view + s.slice(from)
 }
@@ -1075,16 +1054,8 @@ function boldLength(word: string, level: number): number {
 
 // ------------------------------------------------------------------ transform
 
-/** Offsets in the text where `**` goes for one scope. */
-function scopePoints(text: string, scope: Scope, labels: ReadonlySet<string>, level: number): number[] {
-  // Where each line starts and ends in `content`, the lines joined by newlines.
-  const spans: Span[] = []
-  let length = 0
-  for (const [start, end] of scope.lines) {
-    spans.push([length, length + end - start])
-    length += end - start + 1
-  }
-  const content = scope.lines.map(([start, end]) => text.slice(start, end)).join('\n')
+/** Offsets in `content`, the scope's lines joined by newlines, where `**` goes. */
+function scopePoints(content: string, spans: Span[], scope: Scope, labels: ReadonlySet<string>, level: number): number[] {
   if (!HAS_LETTER.test(content)) return []
   const flags = guard(content, scope.open, labels)
   for (const line of scope.held) flags.fill(OPAQUE, ...spans[line]!)
@@ -1102,28 +1073,52 @@ function scopePoints(text: string, scope: Scope, labels: ReadonlySet<string>, le
       })
     }
   }
-  let line = 0
-  return boldPoints(content, flags, level).map(point => {
-    while (point > spans[line]![1]) line++
-    return scope.lines[line]![0] + point - spans[line]![0]
-  })
+  return boldPoints(content, flags, level)
 }
 
-function transform(text: string, level: number): string {
+/** The points of the scopes of the last text read, by everything they depend on. */
+interface Memo {
+  labels: ReadonlySet<string>
+  points: Map<string, number[]>
+}
+
+/**
+ * The text with bold added, read afresh. With a memo, a scope read last time
+ * is not read again: a reply streaming in comes with each new piece, and only
+ * its last scopes change. A new label changes them all.
+ */
+export function transform(text: string, level: number, memo?: Memo): string {
   const { scopes, labels } = readBlocks(text)
+  const known =
+    memo && memo.labels.size === labels.size && [...labels].every(label => memo.labels.has(label)) ? memo.points : undefined
+  const read = new Map<string, number[]>()
   const parts: string[] = []
   let from = 0
   let room = MAX_OUTPUT - text.length
   for (const scope of scopes) {
-    const points = scopePoints(text, scope, labels, level)
+    // Where each line starts and ends in `content`, the lines joined by newlines.
+    const spans: Span[] = []
+    let length = 0
+    for (const [start, end] of scope.lines) {
+      spans.push([length, length + end - start])
+      length += end - start + 1
+    }
+    const content = scope.lines.map(([start, end]) => text.slice(start, end)).join('\n')
+    const slot = `${level} ${scope.open} ${scope.table} ${scope.held}\n${content}`
+    const points = known?.get(slot) ?? scopePoints(content, spans, scope, labels, level)
+    read.set(slot, points)
     // Each point adds two characters; past the limit the rest stays plain.
     room -= 2 * points.length
     if (room < 0) break
+    let line = 0
     for (const point of points) {
-      parts.push(text.slice(from, point), '**')
-      from = point
+      while (point > spans[line]![1]) line++
+      const at = scope.lines[line]![0] + point - spans[line]![0]
+      parts.push(text.slice(from, at), '**')
+      from = at
     }
   }
+  if (memo) Object.assign(memo, { labels, points: read })
   if (!parts.length) return text
   parts.push(text.slice(from))
   return parts.join('')
@@ -1133,16 +1128,24 @@ function transform(text: string, level: number): string {
 
 const cache = new Map<string, string>()
 let cachedChars = 0
+let lastMiss = ''
+const memo: Memo = { labels: new Set(), points: new Map() }
 
 function remember(key: string, value: string): string {
+  // A reply streaming in takes the place of its last piece, not of finished replies.
+  if (key.startsWith(lastMiss)) forget(lastMiss)
+  lastMiss = key
   cache.set(key, value)
   cachedChars += key.length + value.length
-  while (cache.size > CACHE_ENTRIES || cachedChars > CACHE_CHARS) {
-    const [oldKey, oldValue] = cache.entries().next().value!
-    cache.delete(oldKey)
-    cachedChars -= oldKey.length + oldValue.length
-  }
+  while (cache.size > CACHE_ENTRIES || cachedChars > CACHE_CHARS) forget(cache.entries().next().value![0])
   return value
+}
+
+function forget(entry: string): void {
+  const value = cache.get(entry)
+  if (value === undefined) return
+  cache.delete(entry)
+  cachedChars -= entry.length + value.length
 }
 
 /** Level 1..5 (default 3). Text it cannot or need not change comes back as given. */
@@ -1151,7 +1154,7 @@ export function bionic(text: string, level: number = DEFAULT_LEVEL): string {
   const lv = Number.isInteger(level) && level >= 1 && level <= 5 ? level : DEFAULT_LEVEL
   const key = lv + text
   const hit = cache.get(key)
-  if (hit === undefined) return remember(key, transform(text, lv))
+  if (hit === undefined) return remember(key, transform(text, lv, memo))
   cache.delete(key)
   cache.set(key, hit)
   return hit
