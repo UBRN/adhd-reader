@@ -103,8 +103,10 @@ interface Scope {
 
 type Container = { quote: true } | { quote: false; indent: number; empty: boolean }
 
+type Paragraph = { kind: 'paragraph' } & Omit<Scope, 'open'>
+
 type Leaf =
-  | { kind: 'paragraph'; lines: Span[]; table: number; held: number[] }
+  | Paragraph
   | { kind: 'fence'; marker: string; length: number }
   // HTML and the like: kept as written up to a line matching `end`, or a blank line.
   | { kind: 'raw'; end: RegExp | null }
@@ -230,7 +232,7 @@ class BlockReader {
   }
 
   /** Whether a fence, raw block or math block takes this line; it may end on it. */
-  private rawLeafTakes(leaf: Exclude<Leaf, { kind: 'paragraph' }>, line: string, pos: number): boolean {
+  private rawLeafTakes(leaf: Exclude<Leaf, Paragraph>, line: string, pos: number): boolean {
     const indent = indentWidth(line, pos)
     const body = line.slice(pos + indent)
     if (leaf.kind === 'fence') {
@@ -298,7 +300,7 @@ class BlockReader {
   }
 
   /** Whether the open paragraph or table takes the line; when it does not, it ends. */
-  private paragraphTakes(leaf: Extract<Leaf, { kind: 'paragraph' }>, body: string, indent: number, content: Span): boolean {
+  private paragraphTakes(leaf: Paragraph, body: string, indent: number, content: Span): boolean {
     const blockStart = indent < 4 && startsLeaf(body)
     if (leaf.table >= 0) {
       if (indent < 4 && !blockStart) {
@@ -331,7 +333,7 @@ class BlockReader {
    * a lone tag line where CommonMark reads on, so the text is kept as written up
    * to the next blank line, and the paragraph so far is read as one that may go on.
    */
-  private continueParagraph(leaf: Extract<Leaf, { kind: 'paragraph' }>, body: string, content: Span): void {
+  private continueParagraph(leaf: Paragraph, body: string, content: Span): void {
     if (htmlBlock(body) === LONE_TAG) {
       this.endParagraph(true)
       this.leaf = RAW_UNTIL_BLANK
@@ -527,7 +529,7 @@ interface DelimiterRun {
 // What every inline construct, delimiter and bare URL needs somewhere in the text.
 const INLINE = /[\\`<$![\]*_:]|www\./i
 
-/** Per character of `s`: 0 free, TEXT or OPAQUE. */
+/** Per character of `s`: 0 free, TEXT, MARKER or OPAQUE. */
 function guard(s: string, open: boolean, labels: ReadonlySet<string>): Uint8Array {
   if (!INLINE.test(s)) return new Uint8Array(s.length)
   const scan = new InlineScan(s, open, labels)
@@ -1028,7 +1030,7 @@ const UNSPACED_SCRIPT =
 /** Offsets in `s` where `**` goes: the start and the end of each bold head. */
 function boldPoints(s: string, flags: Uint8Array, level: number): number[] {
   const points: number[] = []
-  const view = hideOpaque(s, flags)
+  const view = masked(s, flags)
   // exec loops: matchAll copies the regex on every call.
   TOKEN.lastIndex = 0
   for (let token; (token = TOKEN.exec(view)); ) {
@@ -1050,8 +1052,8 @@ function free(flags: Uint8Array, start: number, end: number): boolean {
   return true
 }
 
-/** `s` with each OPAQUE character replaced by U+0001 and each MARKER by U+0002, so token tests do not see them. */
-function hideOpaque(s: string, flags: Uint8Array): string {
+/** `s` with each OPAQUE character replaced by U+0001 and each MARKER by U+0002, so the word tests do not see them. */
+function masked(s: string, flags: Uint8Array): string {
   let view = ''
   let from = 0
   for (let k = 0; k < flags.length; k++) {
@@ -1142,7 +1144,7 @@ function scopePoints(content: string, spans: Span[], scope: Scope, labels: Reado
   return boldPoints(content, flags, level)
 }
 
-/** The points of the scopes of the last text read, by everything they depend on. */
+/** The points of the scopes of a text read, by everything they depend on. */
 interface Memo {
   labels: ReadonlySet<string>
   points: Map<string, number[]>
