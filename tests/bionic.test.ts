@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { bionic } from '../hooks/bionic.ts'
+import { bionic, transform } from '../hooks/bionic.ts'
 
 const LEVELS = [1, 2, 3, 4, 5]
 
@@ -110,6 +110,16 @@ const EXACT: Array<[string, string]> = [
   ["[note]:\n```js\nconst words = here\n```\nafter words","[note]:\n```js\nconst words = here\n```\n**aft**er **wor**ds"],
   // An escaped astral symbol shifts the renderer's emphasis mask for the text before it.
   ["Some words here then \\🎉 and more words","Some words here then \\🎉 **a**nd **mo**re **wor**ds"],
+  // Paired emphasis delimiters vanish and the text between them still reads as part of its token.
+  ["Check *.json and src/*.ts files.","**Che**ck *.json and src/*.ts **fil**es."],
+  ["Use *args and **kwargs, then src/**/*.py files.","**U**se *args and **kwargs, then src/**/*.py **fil**es."],
+  ["Edit *.md files under docs/*.rst please.","**Ed**it *.md files under docs/*.rst **ple**ase."],
+  ["Match *.md and **/*.ts files in the repo.","**Mat**ch *.md and **/*.ts **fil**es **i**n **t**he **re**po."],
+  ["Edit __init__.py and the *src/lib*.rs file.","**Ed**it __init__.py **a**nd **t**he *src/lib*.rs **fi**le."],
+  ["**Bold term**:explanation here","**Bold term**:**expla**nation **he**re"],
+  // marked lets a later `**` take the closing `_` past a lone `**` inside the emphasis.
+  ["See _the ** operator_ docs","**S**ee _the ** operator_ docs"],
+  ["This is _really ** important_ for files","**Th**is **i**s _really ** important_ for files"],
 ]
 
 // Adversarial inputs: every one must come out as the input plus whole `**` pairs, and bolding it again must change nothing.
@@ -670,6 +680,22 @@ test('every prefix of a reply streaming in is safe', () => {
   }
   expect(bionic('This is **Important note about', 3)).not.toContain('****')
   expect(bionic('Run `npm install foo', 3)).toBe('**R**un `npm install foo')
+})
+
+test('a reply streaming in gives what a fresh read of each piece gives', () => {
+  const fixtures = [...EXACT.map(([input]) => input), ...Object.values(ADVERSARIAL)]
+  // Each fixture streams in on its own, then all of them as one long reply.
+  for (const reply of fixtures) {
+    for (let end = 1; end <= reply.length; end++) {
+      const prefix = reply.slice(0, end)
+      expect(bionic(prefix, 3)).toBe(transform(prefix, 3))
+    }
+  }
+  const long = fixtures.join('\n\n')
+  for (let end = 1; end <= long.length; end += 100 + (end % 61)) {
+    const prefix = long.slice(0, end)
+    expect(bionic(prefix, 3)).toBe(transform(prefix, 3))
+  }
 })
 
 test('size limits: oversized input comes back as given, output stays under the cap', () => {
