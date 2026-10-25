@@ -51,6 +51,7 @@ const CARET = 94
 const UNDERSCORE = 95
 const BACKTICK = 96
 const PIPE = 124
+const TILDE = 126
 
 // ---------------------------------------------------------------- characters
 
@@ -72,7 +73,8 @@ function charClass(ch: string): 0 | 1 | 2 {
 function charBefore(s: string, i: number): string {
   if (i <= 0) return ''
   const low = s.charCodeAt(i - 1)
-  return low >= 0xdc00 && low <= 0xdfff && i >= 2 ? String.fromCodePoint(s.codePointAt(i - 2)!) : s[i - 1]!
+  const high = s.charCodeAt(i - 2)
+  return low >= 0xdc00 && low <= 0xdfff && high >= 0xd800 && high <= 0xdbff ? s.slice(i - 2, i) : s[i - 1]!
 }
 
 // Pairs surrogates by hand: V8's Maglev has read past the end of a sliced string in codePointAt.
@@ -114,6 +116,7 @@ const THEMATIC_BREAK = /^([-*_])(?:[ \t]*\1){2,}[ \t]*$/
 const FENCE = /^(`{3,}|~{3,})(.*)$/
 const FENCE_CLOSE = /^(`{3,}|~{3,})[ \t]*$/
 const LIST_MARKER = /(?:[-+*]|(\d{1,9})[.)])(?= |$)/y
+const TASK_BOX = /\[[ xX]\] +/y
 const DELIMITER_ROW = /^\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/
 const BLOCK_TAGS =
   'address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|' +
@@ -262,6 +265,9 @@ class BlockReader {
       this.endParagraph()
       this.containers.push({ quote: false, indent: indent + item.indent, empty: item.empty })
       pos = Math.min(line.length, at + item.indent)
+      // marked reads what follows a task box as the start of a block: - [ ] ```bash
+      TASK_BOX.lastIndex = pos
+      if (TASK_BOX.test(line) && TASK_BOX.lastIndex < line.length) return TASK_BOX.lastIndex
     }
   }
 
@@ -495,10 +501,9 @@ const OPAQUE = 3 // kept as written and hidden from the token tests
 
 const BARE_URL = /(?:[a-z][a-z0-9+.-]{1,15}:\/\/(?=[\p{L}\p{N}_-])|file:\/\/|mailto:|www\.(?=[\p{L}\p{N}_-]))[^\s<>`]+/iuy
 const URL_TRAILER = `.,:;!?'"*_~]`
-const TAG_OR_AUTOLINK = new RegExp(
-  `${OPEN_TAG}|${CLOSING_TAG}|<[A-Za-z][A-Za-z0-9+.-]{1,31}:[^\\s<>]*>|<[^\\s<>@]+@[^\\s<>]+>`,
-  'y',
-)
+const AUTOLINK = String.raw`<[A-Za-z][A-Za-z0-9+.-]{1,31}:[^\s<>]*>|<[^\s<>@]+@[^\s<>]+>`
+const TAG_OR_AUTOLINK = new RegExp(`${OPEN_TAG}|${CLOSING_TAG}|${AUTOLINK}`, 'y')
+const AUTOLINK_END = new RegExp(`(?:${AUTOLINK})$`)
 const MARKED_SKIP = /\[[^[\]]*?\]\((?:\\.|[^\\()]|\((?:\\.|[^\\()])*\))*\)|`[^`]*?`|<[^<>]*?>/g
 const ASTRAL_ESCAPE = /\\[\p{P}\p{S}](?<=[\u{10000}-\u{10FFFF}])/gu
 const HTML_SPANS: Array<[open: string, close: string]> = [
@@ -567,6 +572,7 @@ class InlineScan {
         case CLOSE_BRACKET: i = this.linkTail(i); break
         case STAR:
         case UNDERSCORE: i = this.delimiterRun(i); break
+        case TILDE: i = this.tilde(i); break
         default: i = this.bareUrl(i)
       }
     }
@@ -656,6 +662,13 @@ class InlineScan {
     const close = this.closingTicks(end - i, end)
     if (close >= 0) return this.keep(i, close + end - i)
     return this.open ? this.keepRest(i) : end
+  }
+
+  /** With no `~` after it to strike through to, marked reads a run of tildes and backticks as text: ~`50MB`. */
+  private tilde(i: number): number {
+    let end = i + 1
+    while (this.s.charCodeAt(end) === BACKTICK || this.s.charCodeAt(end) === TILDE) end++
+    return this.find('~', end) < 0 ? end : i + 1
   }
 
   /** Start of the first run of exactly `length` backticks at or after `from`, or -1. */
@@ -973,6 +986,8 @@ function matchEmphasis(runs: DelimiterRun[], span: (start: number, end: number, 
         span(opener.start + opener.length, run.start + used, used)
         run.start += used
         run.length -= used
+        // A `**` inside `_..._` lets marked take the `_` for a later `**`, as with the lone one above: _**kwargs_
+        if (!run.star) for (const skipped of openers.slice(k + 1)) if (skipped.star && skipped.size === 2) stray = Math.min(stray, skipped.start)
         openers.length = opener.length > 0 ? k + 1 : k
       }
       if (run.length > 0 && !run.canOpen) stray = Math.min(stray, run.start)
@@ -995,12 +1010,17 @@ const HAS_LETTER = /\p{L}/u
 const TOKEN = /\S+/g
 const WORD = /\p{L}[\p{L}\p{M}]*(?:['’]\p{L}[\p{L}\p{M}]*)*/gu
 const APOSTROPHE = /['’]/
+const CLOSER = /^[`)\]]$/
+// The selector or tag an emoji can end in, which the classes read as a letter.
+const EMOJI_END = /^[\ufe0f\u{e007f}]$/u
+// A skin tone makes one grapheme with the letter before it.
+const SKIN_TONE = /^\p{Emoji_Modifier}$/u
 // Letters below U+0300 and in the Greek and Cyrillic blocks, marks aside, are one grapheme each (U+02BC aside: it is also Thai).
 const SIMPLE = /^[\0-\u02bb\u02bd-\u02ff\u0370-\u0482\u048a-\u052f]*$/
 // A token with any of these is not prose: paths, identifiers, addresses,
 // versions, flags, URLs, anything with a digit.
 const TECHNICAL =
-  /[/\\_@#=+$%&^|{}<>~*]|\p{Ll}\p{Lu}|\p{L}\.\p{L}|\p{N}|(?:^|[^\p{L}\p{N}-])-{1,2}\p{L}|^\.\p{L}|:\/\/|::/u
+  /[/\\_@#=+$%&^|{}<>~*]|\p{Ll}\p{Lu}|\p{Lu}{2}\p{Ll}{2}|\p{L}\.\p{L}|\p{N}|(?:^|[^\p{L}\p{N}-])-{1,2}\p{L}|^\.\p{L}|:\/\/|::/u
 // Scripts written without spaces between words, and cursive scripts.
 const UNSPACED_SCRIPT =
   /(?=\p{L})[\p{scx=Han}\p{scx=Hiragana}\p{scx=Katakana}\p{scx=Hangul}\p{scx=Thai}\p{scx=Lao}\p{scx=Khmer}\p{scx=Myanmar}\p{scx=Tibetan}\p{scx=Arabic}\p{scx=Hebrew}\p{scx=Syriac}\p{scx=Thaana}\p{scx=Mongolian}]/u
@@ -1018,7 +1038,7 @@ function boldPoints(s: string, flags: Uint8Array, level: number): number[] {
       const start = token.index + word.index
       const end = start + word[0].length
       if (!free(flags, start, end)) continue
-      if (!standsAlone(s, start, end) || UNSPACED_SCRIPT.test(word[0])) continue
+      if (!standsAlone(s, flags, start, end) || UNSPACED_SCRIPT.test(word[0])) continue
       points.push(start, start + boldLength(word[0], level))
     }
   }
@@ -1046,12 +1066,18 @@ function hideOpaque(s: string, flags: Uint8Array): string {
   return view + s.slice(from)
 }
 
-/** Whether only whitespace or punctuation other than `*`, `_` and `~` touches the word. */
-function standsAlone(s: string, start: number, end: number): boolean {
-  let before = charBefore(s, start)
+/**
+ * Whether only whitespace or punctuation other than `*`, `_` and `~` touches the
+ * word, and no code span, link or autolink ends right before it: `npm`'i.
+ */
+function standsAlone(s: string, flags: Uint8Array, start: number, end: number): boolean {
   // After an apostrophe the word is judged as if the apostrophe were part of it.
-  if (before === "'" || before === '’') before = charBefore(s, start - 1)
-  return isBoundary(before) && isBoundary(charFrom(s, end))
+  if (s[start - 1] === "'" || s[start - 1] === '’') start--
+  const before = charBefore(s, start)
+  if (flags[start - 1] && (CLOSER.test(before) || (before === '>' && AUTOLINK_END.test(s.slice(s.lastIndexOf('<', start), start)))))
+    return false
+  const after = charFrom(s, end)
+  return (isBoundary(before) || EMOJI_END.test(before)) && isBoundary(after) && !SKIN_TONE.test(after)
 }
 
 function isBoundary(ch: string): boolean {

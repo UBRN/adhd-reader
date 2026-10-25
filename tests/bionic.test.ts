@@ -120,6 +120,23 @@ const EXACT: Array<[string, string]> = [
   // marked lets a later `**` take the closing `_` past a lone `**` inside the emphasis.
   ["See _the ** operator_ docs","**S**ee _the ** operator_ docs"],
   ["This is _really ** important_ for files","**Th**is **i**s _really ** important_ for files"],
+  // A suffix glued to code, a link or an autolink belongs to it.
+  ["the `Promise`s resolve, kurulum `npm`'i kur, `bionic.ts`'deki satır","**t**he `Promise`s **reso**lve, **kuru**lum `npm`'i **k**ur, `bionic.ts`'deki **sat**ır"],
+  ["[Ali](https://a.localhost)'nin evi, <https://x.localhost>’s page, [Ali][r]'nin evi\n\n[r]: https://a.localhost","[**A**li](https://a.localhost)'nin **e**vi, <https://x.localhost>’s **pa**ge, [**A**li][r]'nin **e**vi\n\n[r]: https://a.localhost"],
+  // Identifiers that start with an acronym; a plural acronym is still a word.
+  ["use URLSession, HTTPServer, IOError, OAuth and JSONParser with APIs and URLs","**u**se URLSession, HTTPServer, IOError, OAuth **a**nd JSONParser **wi**th **AP**Is **a**nd **UR**Ls"],
+  // A word right after an emoji is bolded whatever the emoji ends in; a skin tone stays on its letter.
+  ["⚠️Warning and ✅Done and 🏴󠁧󠁢󠁳󠁣󠁴󠁿Scotland","⚠️**Warn**ing **a**nd ✅**Do**ne **a**nd 🏴󠁧󠁢󠁳󠁣󠁴󠁿**Scot**land"],
+  ["a🏽 b","a🏽 **b**"],
+  ["a \udc00word and a \ud800word","**a** \udc00word **a**nd **a** \ud800word"],
+  // marked reads `~` and the backticks after it as text, so the code spans pair one tick later.
+  ["The cache is ~`50MB` and the `limit` flag caps it.\n\nEnd words","**T**he **cac**he **i**s ~`50MB` and the `limit` **fl**ag **ca**ps **i**t.\n\n**E**nd **wor**ds"],
+  // A `**` left open inside emphasis takes a later `**` in marked.
+  ["Use _**kwargs_ for extra options and more words.","**U**se _**kwargs_ for extra options and more words."],
+  // marked reads what follows a task box as the start of a line.
+  ["- [ ] ```bash\n  npm test\n  ```","- [ ] ```bash\n  npm test\n  ```"],
+  ["* [ ] <!-- todo --> remaining words here","* [ ] <!-- todo --> remaining words here"],
+  ["- [x] [T]: words","- [x] [T]: words"],
 ]
 
 // Adversarial inputs: every one must come out as the input plus whole `**` pairs, and bolding it again must change nothing.
