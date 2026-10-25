@@ -323,8 +323,8 @@ test('arguments in any language and case; nothing reaches the transcript', async
   await run($, 'status')
   expect(w.last()).toBe('ADHD Reader on: Strong (4/5)')
   await run($, 'help')
-  const { band, controls, screen } = MESSAGES.en
-  expect(w.toasts.slice(-4)).toEqual([band, controls, screen, 'Usage: /adhd-reader [on | off | toggle | status | help | 1-5]'])
+  const { band, controls } = MESSAGES.en
+  expect(w.toasts.slice(-3)).toEqual([band, controls, 'Usage: /adhd-reader [on | off | toggle | status | help | 1-5]'])
 })
 
 test('invalid arguments say what was wrong and change nothing', async ($, on) => {
@@ -623,8 +623,14 @@ for (const lang of LANGS)
   test(`${lang}: every toast is one line that fits its box`, { options: { language: lang } }, async ($, on) => {
     const w = world(on)
     await start($)
-    for (const args of ['help', 'abcdefghijkl', 'off', '1', '2', '3', '4', '5', 'status']) await run($, args)
-    expect(w.toasts).toHaveLength(3 + 4 + 2 + 7)
+    const counts = [w.toasts.length]
+    for (const args of ['help', 'abcdefghijkl', 'off', '1', '2', '3', '4', '5', 'status']) {
+      const before = w.toasts.length
+      await run($, args)
+      counts.push(w.toasts.length - before)
+    }
+    // The terminal shows three toasts at once; a fourth hides the oldest behind "+1 more".
+    expect(counts).toEqual([3, 3, 2, 1, 1, 1, 1, 1, 1, 1])
     for (const text of w.toasts) {
       expect([text, text.includes('\n'), cells(text) <= 110, wrap(text).length <= 3]).toEqual([text, false, true, true])
     }
